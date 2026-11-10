@@ -106,3 +106,28 @@ test('blocked browser storage still retains current-session result for export',a
   const messages=[];const store=new RecordService({all:async()=>{throw Error();},put:async()=>{throw Error();}},{notify:m=>messages.push(m)});
   await store.save(record());assert.equal((await store.list()).length,1);assert.ok(messages.some(Boolean));
 });
+
+
+function clockHarness(provinces=data.provinces) {
+  let time=0,seq=0;const tasks=new Map(),completed=[];
+  const roulette=new Roulette(provinces,{pick:()=>0,now:()=>time,schedule:(fn,ms)=>{const id=++seq;tasks.set(id,{fn,at:time+ms});return id;},cancel:id=>tasks.delete(id),completed:r=>completed.push(r)});
+  function advance(ms) {const end=time+ms;while(tasks.size){const [id,task]=[...tasks].sort((a,b)=>a[1].at-b[1].at)[0];if(task.at>end)break;time=task.at;tasks.delete(id);task.fn();}time=end;}
+  return {roulette,tasks,completed,advance};
+}
+test('each stage automatically stops at five seconds with one result and no remaining timers',()=>{
+  const h=clockHarness();h.roulette.start();h.advance(4999);assert.equal(h.roulette.state,STATES.PROVINCE);const province=h.roulette.current;
+  h.advance(1);assert.equal(h.roulette.state,STATES.TRANSITION);assert.equal(h.roulette.province,province);
+  h.advance(1200);assert.equal(h.roulette.state,STATES.DISTRICT);h.advance(4999);const displayed=h.roulette.current;
+  h.advance(1);assert.equal(h.roulette.destination,displayed);assert.equal(h.completed.length,1);assert.equal(h.tasks.size,0);
+  h.advance(20000);assert.equal(h.completed.length,1);
+});
+test('manual stop and reset cancel the old automatic deadline; reroll gets a fresh deadline',()=>{
+  const h=clockHarness();h.roulette.start();h.advance(1000);h.roulette.stop();h.advance(1200);h.roulette.stop();
+  assert.equal(h.completed.length,1);h.advance(10000);assert.equal(h.completed.length,1);
+  h.roulette.rerollDistrict();h.advance(4999);assert.equal(h.roulette.state,STATES.DISTRICT);h.advance(1);assert.equal(h.completed.length,2);
+  h.roulette.start();h.advance(3000);h.roulette.reset();h.advance(10000);assert.equal(h.roulette.state,STATES.READY);assert.equal(h.completed.length,2);assert.equal(h.tasks.size,0);
+});
+test('Sejong automatically completes once without starting a second stage',()=>{
+  const h=clockHarness(data.provinces.filter(p=>p.singleStage));h.roulette.start();h.advance(5000);
+  assert.equal(h.roulette.state,STATES.COMPLETE);assert.equal(h.completed.length,1);assert.equal(h.tasks.size,0);
+});

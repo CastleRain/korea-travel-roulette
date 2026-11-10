@@ -325,3 +325,10 @@ kbd { background: transparent; color: #d7e1ef; border: 1px solid #526079; font-f
 
 .mobile-views .btn {background:#fff;color:var(--muted);border-color:var(--border)}
 .mobile-views .btn.active {background:var(--ink);border-color:var(--ink);color:#fff}
+
+/* The map gets the room until records are explicitly opened. */
+.auto-stop {font-size:11px;color:#b6c9e8;margin:0 0 10px;font-variant-numeric:tabular-nums}
+#records-toggle {white-space:nowrap;font-size:12px;min-height:36px}
+#records-close {margin-left:auto}
+@media(min-width:992px){.records-collapsed .workspace.row{grid-template-columns:minmax(0,1fr) minmax(300px,360px)}.records-collapsed .map-area{margin-inline:20px}}
+@media(max-width:575px){.intro {align-items:flex-start;flex-wrap:wrap;gap:12px}.intro #records-toggle{font-size:11px}.auto-stop{font-size:11px}}

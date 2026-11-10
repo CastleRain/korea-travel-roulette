@@ -104,6 +104,8 @@ function renderEngine() {
   const state=engine.state;
   const spinning=state===STATES.PROVINCE||state===STATES.DISTRICT;
   $('destination').textContent=engine.current?.name||'어디든 좋아요';
+  $('auto-stop').hidden=!spinning;
+  if(spinning) $('auto-stop').textContent=`${Math.max(1,Math.ceil((engine.deadline-engine.now())/1000))}초 뒤 자동 정지 · 지금 멈춰도 좋아요`;
   if (state===lastState) return;
   lastState=state;
   const ready=state===STATES.READY, complete=state===STATES.COMPLETE, transition=state===STATES.TRANSITION;
@@ -348,9 +350,19 @@ function setupControls() {
   }
   $('record-person').addEventListener('change',event=>{personFilter=event.target.value;pageNumber=1;selectedCandidates.clear();renderRecords();});
   for(const [id,delta] of [['records-prev',-1],['records-next',1]]) $(id).addEventListener('click',()=>{pageNumber+=delta;selectedCandidates.clear();renderRecords();});
-  function mobileView(records) {document.body.classList.toggle('show-records',records);for(const [id,active] of [['view-records',records],['view-draw',!records]]) {$(id).classList.toggle('active',active);$(id).setAttribute('aria-pressed',String(active));}}
-  $('view-draw').addEventListener('click',()=>mobileView(false));$('view-records').addEventListener('click',()=>mobileView(true));
-  document.querySelectorAll('a[href="#records-panel"]').forEach(link=>link.addEventListener('click',()=>mobileView(true)));
+  function showRecords(open,restoreFocus=false) {
+    $('records-panel').hidden=!open;
+    document.body.classList.toggle('records-collapsed',!open);
+    document.body.classList.toggle('show-records',open);
+    $('records-toggle').setAttribute('aria-expanded',String(open));
+    $('records-toggle-label').textContent=open?'여행 기록 접기':'여행 기록 펼치기';
+    for(const [id,active] of [['view-records',open],['view-draw',!open]]) {$(id).classList.toggle('active',active);$(id).setAttribute('aria-pressed',String(active));}
+    if(restoreFocus) $('records-toggle').focus();
+  }
+  $('records-toggle').addEventListener('click',()=>showRecords($('records-panel').hidden));
+  $('records-close').addEventListener('click',()=>showRecords(false,true));
+  $('view-draw').addEventListener('click',()=>showRecords(false));$('view-records').addEventListener('click',()=>showRecords(true));
+  document.querySelectorAll('a[href="#records-panel"]').forEach(link=>link.addEventListener('click',()=>showRecords(true)));
   document.addEventListener('keydown',event=>{
     if(event.key!=='Enter'||event.isComposing||event.ctrlKey||event.altKey||event.metaKey) return;
     if(document.querySelector('dialog[open]')) return;

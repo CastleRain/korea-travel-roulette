@@ -26,10 +26,11 @@ export function validateCatalog(data) {
 }
 
 export class Roulette {
-  constructor(provinces, { pick = uniformIndex, schedule = (fn,ms)=>globalThis.setTimeout(fn,ms), cancel = id=>globalThis.clearTimeout(id), changed = () => {}, completed = () => {} } = {}) {
+  constructor(provinces, { pick = uniformIndex, schedule = (fn,ms)=>globalThis.setTimeout(fn,ms), cancel = id=>globalThis.clearTimeout(id), now = ()=>Date.now(), autoStopMs = 5000, changed = () => {}, completed = () => {} } = {}) {
     this.provinces = provinces;
     this.pick = pick; this.schedule = schedule; this.cancel = cancel;
     this.changed = changed; this.completed = completed;
+    this.now=now; this.autoStopMs=autoStopMs; this.deadline=0;
     this.timer = null; this.generation = 0;
     this.state = STATES.READY; this.province = null; this.destination = null; this.current = null;
   }
@@ -37,6 +38,7 @@ export class Roulette {
     this.generation++;
     if (this.timer !== null) this.cancel(this.timer);
     this.timer = null;
+    this.deadline=0;
   }
   reset() {
     this.clear(); this.state = STATES.READY;
@@ -52,11 +54,13 @@ export class Roulette {
   }
   spin(candidates) {
     const generation = this.generation;
+    this.deadline=this.now()+this.autoStopMs;
     const tick = () => {
       if (generation !== this.generation) return;
+      if(this.current && this.now()>=this.deadline) {this.stop();return;}
       this.current = candidates[this.pick(candidates.length)];
       this.changed(this);
-      this.timer = this.schedule(tick, 80);
+      this.timer = this.schedule(tick, Math.min(80,Math.max(0,this.deadline-this.now())));
     };
     tick();
   }
