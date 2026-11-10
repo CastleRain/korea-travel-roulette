@@ -70,3 +70,10 @@ Windows에서 in-app browser로 로컬 및 배포 사이트를 직접 조작했�
 4. 실제 사이트 추첨 → Firestore 문서 생성 → 새로고침 조회 및 실패·재시도 검증.
 
 웹 UI 테스트는 지금 가능하다. Firebase 실저장 완료 판정은 위 단계 이후에만 가능하다. 여러 기기에서 같은 기록을 공유하는 정식 계정 로그인은 이번 구현 범위에 포함하지 않았다.
+
+
+## 2026-11-10 dalchun 실제 연결 및 기록 카드 검증
+
+최신 결과는 [Firebase 연결 기록](FIREBASE_CONNECTION_STATUS.md)을 따른다. 사용자 승인 후 콘솔에서 익명 인증·본인 경로 규칙을 적용했다. 로컬 및 공개 서비스에서 실제 Firebase 저장을 확인했다. 공개 서비스의 연결테스트/경상북도 구미시 저장과 재로딩 후 유지 확인. Bootstrap 기반 기록 요약·카드·상태·모바일 배치 확인. 테스트28/28·빌드·내용 해시 import5개 일치·GitHub Actions42831923960 성공. 운영 DB의 타인 접근 부정 테스트와 다른 기기 공유는 미실행이다.
+
+변경 파일: public/firebase-config.js, public/index.html, public/style.css, src/app.js, scripts/build.mjs 및 README/설정/결정/검증 문서. Firebase Hosting·유료 요금제·계정 자동 삭제는 사용하지 않았다. 기존 기록을 지우지 않았다. 후속 서비스 테스트 가능.
