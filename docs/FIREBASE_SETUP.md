@@ -1,6 +1,8 @@
 # 기존 Firebase 프로젝트 연결하기
 
-이 앱은 **GitHub Pages(웹 화면) + Firebase Authentication(익명 사용자) + Cloud Firestore(추첨 기록)**로 동작합니다. Firebase Hosting이나 서버 배포는 필요하지 않습니다. 현재 공개 웹 설정은 아직 미입력 상태이며 실제 Firebase 저장은 연결 전입니다.
+이 앱은 **GitHub Pages(웹 화면) + Firebase Authentication(익명 사용자) + Cloud Firestore(추첨 기록)**로 동작합니다. Firebase Hosting이나 서버 배포는 필요하지 않습니다.
+
+2026-11-10: 사용자 지정 `dalchun-35ecb`에 웹 앱 **어디든 여행 룰렛**을 등록했다. 서울 `asia-northeast3`의 Standard `(default)` DB, Spark 무료 요금제를 사용한다. 사용자 승인 후 익명 인증과 `firestore.rules`를 게시했다. 로컬 화면에서 기존 선택 기록 7개의 저장과 미선택 후보 1개의 미전송을 확인했으며, 해당 후보를 명시적으로 선택해 기록한 뒤 총 8개가 Firebase 저장 완료로 표시됐다. 콘솔의 draws 문서 및 서버 savedAt도 확인했다. 배포 검증 상세는 [연결 기록](FIREBASE_CONNECTION_STATUS.md)에 남긴다.
 
 ## 1. 기존 프로젝트에 웹 앱 등록
 

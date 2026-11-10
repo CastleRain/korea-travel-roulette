@@ -126,6 +126,19 @@ kbd { background: transparent; color: #d7e1ef; border: 1px solid #526079; font-f
 .how-it-works b { font-size: 13px; font-weight: 600; }
 .how-it-works p > span { font-size: 12px; color: var(--muted); }
 .records-layout { scroll-margin-top: 20px; }
+.candidate-section, .history-section { padding-top: 24px; padding-bottom: 24px; }
+.records-eyebrow { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 11px; margin-bottom: 12px; }
+.record-summary { margin: 22px 0 16px; border: 1px solid var(--border); border-radius: 12px; background: #fafbfc; padding: 18px 0; }
+.record-summary .col { padding: 0 18px; display: flex; flex-direction: column; gap: 9px; }
+.record-summary .col + .col { border-left: 1px solid var(--border); }
+.record-summary span { color: var(--muted); font-size: 11px; }
+.record-summary strong { font-size: 25px; font-weight: 650; line-height: 1; font-variant-numeric: tabular-nums; }
+.candidate-marker, .history-marker { display: grid; place-items: center; flex-shrink: 0; width: 42px; height: 48px; border-radius: 9px; background: #f0f3f8; color: #62708a; font-size: 20px; }
+.candidate-row > .bi:last-child { margin-left: auto; color: #98a2b3; font-size: 12px; }
+.candidate-row:has(input:checked) .candidate-marker { background: #dce8ff; color: var(--accent); }
+.record-region { display: block; color: var(--muted); font-size: 11px; margin-bottom: 5px; }
+.record-metadata { display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--muted); font-size: 11px; line-height: 1.7; margin: 8px 0 10px; }
+.record-metadata > span { display: inline-flex; gap: 4px; align-items: center; }
 .records-layout:has(#candidates[hidden]) #history { width: 100%; }
 .section-heading { display: flex; justify-content: space-between; align-items: center; gap: 14px; min-height: 34px; }
 .section-heading h2 { font-size: 19px; font-weight: 700; letter-spacing: -.035em; margin: 0; }
@@ -149,14 +162,15 @@ kbd { background: transparent; color: #d7e1ef; border: 1px solid #526079; font-f
 .status-dot.error { background: #cc4949; }
 .storage-notice p { font-size: 11px; color: var(--muted); line-height: 1.7; margin: 0; }
 .storage-notice .text-button { font-size: 11px; white-space: nowrap; padding-block: 0; margin-left: auto; }
-.history-row { display: flex; gap: 10px; align-items: center; padding: 17px 14px; }
+.history-list { gap: 10px; }
+.history-row.list-group-item { display: flex; gap: 15px; align-items: flex-start; padding: 20px; border: 1px solid var(--border); border-radius: 12px; }
 .history-index { font-size: 11px; color: #8a94a6; min-width: 18px; font-variant-numeric: tabular-nums; }
 .history-info { flex: 1; min-width: 0; }
-.history-info h3 { font-size: 14px; font-weight: 600; margin: 0 0 5px; overflow-wrap: anywhere; }
+.history-info h3 { font-size: 20px; font-weight: 650; margin: 0; overflow-wrap: anywhere; }
 .history-info p { font-size: 11px; color: var(--muted); line-height: 1.6; margin: 0; overflow-wrap: anywhere; }
-.save-tag { font-size: 9px; font-weight: 500; color: #2a5db5; background: #edf3ff; border-radius: 4px; padding: 5px 6px; white-space: nowrap; }
+.save-tag { display: inline-flex; gap: 5px; align-items: center; font-size: 10px; font-weight: 500; color: #385b87; background: #eff4fa; border-radius: 5px; padding: 6px 8px; white-space: nowrap; }
 .save-tag.pending { background: #f2f4f7; color: #667085; }
-.history-map-link { color: #667085; font-size: 15px; }
+.history-map-link { color: #667085; font-size: 15px; border: 1px solid var(--border); padding: 7px 10px; flex-shrink: 0; }
 .more-history { font-size: 11px; color: var(--muted); padding: 13px 14px; margin: 0; }
 .storage-explanation { font-size: 11px; line-height: 1.8; color: #7c8799; margin: 12px 0 0; }
 .empty-state { text-align: center; padding: 30px 16px; background: var(--surface); border-radius: 10px; }
@@ -241,10 +255,11 @@ kbd { background: transparent; color: #d7e1ef; border: 1px solid #526079; font-f
   .how-it-works p { gap: 3px; }
   .section-heading h2 { font-size: 19px; }
   .candidate-row { padding: 16px 14px; }
-  .history-row { gap: 9px; flex-wrap: wrap; }
-  .history-info { flex-basis: calc(100% - 32px); }
-  .save-tag { margin-left: 27px; }
-  .history-map-link { margin-left: auto; }
+  .history-row.list-group-item { gap: 12px; padding: 16px; }
+  .history-marker { width: 32px; height: 40px; font-size: 17px; }
+  .history-map-link { padding: 6px 8px; }
+  .record-summary .col { padding: 0 12px; }
+  .record-summary span { font-size: 10px; }
   .footer-inner { flex-direction: column; gap: 15px; }
   .app-dialog { padding: 24px; border-radius: 12px; }
   .province-options { gap: 7px; }

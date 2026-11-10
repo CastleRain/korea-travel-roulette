@@ -208,7 +208,8 @@ function renderCandidates(records) {
     checkbox.checked=selectedCandidates.has(record.id);
     checkbox.setAttribute('aria-label',`${record.fullName} · ${record.travelerName} · ${dateFormat.format(new Date(record.drawnAt))} 기록 선택`);
     const info=node('span','candidate-info');info.append(node('strong','',record.fullName),node('span','',`${record.travelerName} · ${dateFormat.format(new Date(record.drawnAt))} KST`));
-    row.append(checkbox,info);fragment.append(row);
+    const marker=node('span','candidate-marker');marker.append(icon('geo-alt'));
+    row.append(checkbox,marker,info,icon('plus-lg'));fragment.append(row);
   }
   $('candidate-list').replaceChildren(fragment);
   $('more-candidates').hidden=records.length<=candidateLimit;
@@ -235,6 +236,9 @@ async function refreshHistory(message) {
   $('log-total').textContent=String(records.length).padStart(2,'0');
   $('export-records').disabled=!records.length&&!candidates.length;
   const pending=records.filter(r=>r.syncState!=='synced').length;
+  $('summary-total').textContent=records.length;
+  $('summary-places').textContent=new Set(records.map(r=>r.destinationId)).size;
+  $('summary-synced').textContent=records.length-pending;
   const descriptions={
     unconfigured:`클라우드 미연결 · ${pending?`${pending}개 기록을 이 브라우저에 임시 보관 중입니다.`:'기록은 이 브라우저에 임시 보관합니다.'}`,
     connecting:'클라우드 연결 중 · 기록은 먼저 이 브라우저에 임시 보관합니다.',
@@ -242,6 +246,7 @@ async function refreshHistory(message) {
     error:'클라우드 연결 실패 · 기록은 이 브라우저에 임시 보관 중입니다. 다시 저장을 눌러주세요.'
   };
   $('storage-status').textContent=descriptions[firebaseState];
+  $('storage-explanation').textContent=firebaseState==='connected'?'이 브라우저의 익명 계정으로 보관합니다. 같은 이름을 입력해도 다른 기기와 기록이 공유되지는 않아요.':'선택해 기록한 목적지만 이곳에 모입니다. 클라우드 연결 전에는 이 기기에 보관합니다.';
   if (!localAvailable || service.localFailed) $('storage-status').textContent+=' 브라우저 임시 저장을 사용할 수 없어 JSON 백업이 필요합니다.';
   $('storage-dot').className=`status-dot ${firebaseState==='connected'&&!pending?'':firebaseState==='error'?'error':'warning'}`;
   $('sync-records').hidden=!firebaseConfig || (!pending && firebaseState==='connected');
@@ -250,12 +255,18 @@ async function refreshHistory(message) {
   const fragment=document.createDocumentFragment();
   records.slice(0,20).forEach((r,i)=>{
     const row=node('article','history-row list-group-item');
-    row.append(node('span','history-index',String(records.length-i).padStart(2,'0')));
+    const marker=node('span','history-marker');marker.append(icon('geo-alt-fill'));row.append(marker);
     const info=node('div','history-info');
-    info.append(node('h3','',r.fullName));
-    info.append(node('p','',`${r.travelerName||'기존 기록'} · ${dateFormat.format(new Date(r.drawnAt))} KST · ${r.singleStage?'단일 단계':'2단계 추첨'}`));
-    row.append(info,node('span',`save-tag badge ${r.syncState==='synced'?'':'pending'}`,r.syncState==='synced'?'Firebase 저장 완료':'이 기기에 보관'));
-    const link=node('a','history-map-link');link.append(icon('arrow-up-right'));
+    const region=node('span','record-region',r.provinceName);
+    info.append(region,node('h3','',r.singleStage?r.provinceName:r.destinationName));
+    const metadata=node('div','record-metadata');
+    const traveler=node('span');traveler.append(icon('person'),document.createTextNode(r.travelerName||'기존 기록'));
+    const date=node('time','',dateFormat.format(new Date(r.drawnAt))+' KST');date.dateTime=r.drawnAt;
+    metadata.append(traveler,date);info.append(metadata);
+    const saved=r.syncState==='synced';
+    const status=node('span',`save-tag badge ${saved?'':'pending'}`);status.append(icon(saved?'cloud-check':'clock'),document.createTextNode(saved?'Firebase 저장 완료':'저장 대기'));
+    info.append(status);row.append(info);
+    const link=node('a','history-map-link btn btn-light');link.append(icon('arrow-up-right'));
     link.href=`https://map.naver.com/p/search/${encodeURIComponent(r.fullName)}`;
     link.target='_blank';link.rel='noopener noreferrer';link.setAttribute('aria-label',`${r.fullName} 지도 검색`);row.append(link);fragment.append(row);
   });

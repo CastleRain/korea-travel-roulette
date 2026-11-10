@@ -51,7 +51,7 @@ python scripts/prepare_data.py
 
 콘솔에서 따라 하는 [단계별 연결 안내](docs/FIREBASE_SETUP.md)를 먼저 참고하세요. 웹 앱 등록 → 익명 인증 → 기본 Firestore DB → 보안 규칙 → 공개 웹 설정 반영 → 실제 문서 확인 순서입니다.
 
-현재 `public/firebase-config.js`는 연결 전 값(`null`)입니다. 프로젝트별 설정을 넣기 전에는 클라우드 저장을 주장하지 않습니다.
+현재 `public/firebase-config.js`는 사용자 지정 `dalchun-35ecb` 웹 앱에 연결되어 있습니다. 서울 Standard `(default)` DB, 익명 인증, 본인 기록만 읽기·생성하는 규칙을 적용했습니다. 연결 진행 및 실제 검증은 [연결 기록](docs/FIREBASE_CONNECTION_STATUS.md)을 참고하세요. 아래는 다른 프로젝트로 변경할 때의 절차입니다.
 
 1. 기존 Firebase 프로젝트에서 웹 앱을 등록하고 공개 `firebaseConfig`를 `public/firebase-config.js`에 넣습니다.
 2. Authentication → Sign-in method에서 **익명(Anonymous)** 로그인을 켭니다.
