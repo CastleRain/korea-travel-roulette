@@ -48,13 +48,28 @@ export async function connectFirebase(config) {
         }
       }));
     },
+    watchVote(room,epoch,n,receive,fail) {
+      const ref=firestoreSdk.doc(db,'tripRooms',room,'polls',epoch,'rounds',String(n));
+      return firestoreSdk.onSnapshot(ref,{includeMetadataChanges:true},snap=>{
+        if(!snap.metadata.fromCache && !snap.metadata.hasPendingWrites)receive(snap.data());
+      },fail);
+    },
+    async castVote(room,epoch,n,roster,friend,choice) {
+      const ref=firestoreSdk.doc(db,'tripRooms',room,'polls',epoch,'rounds',String(n));
+      return timeout(firestoreSdk.runTransaction(db,async tx=>{
+        const snap=await tx.get(ref);
+        const votes=snap.data()?.votes || {};
+        if(friend in votes)return;
+        tx.set(ref,{n,refs:roster.map(r=>r.docId),voter:friend,votes:{...votes,[friend]:choice}});
+      }));
+    },
     watch(room, names, receive, fail) {
       const stops = names.map(name => {
         const records = firestoreSdk.collection(db,'tripRooms',room,'travelers',name,'draws');
         const query = firestoreSdk.query(records,firestoreSdk.orderBy('drawnAt','desc'),firestoreSdk.limit(100));
         return firestoreSdk.onSnapshot(query, {includeMetadataChanges:true}, snapshot => {
           if(snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites)return;
-          receive(name,snapshot.docs.filter(doc=>!doc.metadata.hasPendingWrites).map(doc=>({...doc.data(),syncState:'synced'})));
+          receive(name,snapshot.docs.filter(doc=>!doc.metadata.hasPendingWrites).map(doc=>({...doc.data(),docId:doc.id,syncState:'synced'})));
         },fail);
       });
       return () => stops.forEach(stop => stop());

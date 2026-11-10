@@ -33,13 +33,14 @@
     </section>
 
     <div class="travelers-bar"><span><i class="bi bi-people" aria-hidden="true"></i> 여행자</span><div id="traveler-choices" class="btn-group" role="group" aria-label="추첨할 사람"></div><p id="active-traveler" role="status">이름을 선택해주세요</p></div><div class="mobile-views btn-group" role="group" aria-label="화면 선택"><button id="view-draw" class="btn btn-outline-secondary active" aria-pressed="true">여행지 뽑기</button><button id="view-records" class="btn btn-outline-secondary" aria-pressed="false">기록 보기</button></div>
+    <section id="poll" class="poll-card" hidden aria-labelledby="poll-title"><h2 id="poll-title">최종 여행지 투표</h2><p id="poll-status" role="status"></p><div id="poll-choices"></div></section>
     <section class="row g-4 workspace" id="roulette" aria-label="여행지 추첨">
       <div class="map-column">
         <div class="card map-card">
           <div class="map-heading"><h2>대한민국 지도</h2><span class="map-badge badge" id="map-badge">전국 지도</span></div>
           <div class="map-area" id="map-area">
             <svg id="korea-map" viewBox="0 0 640 650" role="group" tabindex="0" aria-describedby="map-gesture" aria-labelledby="map-title"><title id="map-title">대한민국 행정구역 지도 · 데이터를 불러오는 중</title></svg>
-            <span id="map-gesture">드래그로 이동 · 화살표 키로 이동</span><div class="map-controls btn-group-vertical" role="group" aria-label="지도 보기 조정">
+            <span id="map-gesture">드래그로 이동 · 휠로 확대/축소</span><div class="map-controls btn-group-vertical" role="group" aria-label="지도 보기 조정">
               <button class="btn btn-light" id="map-reset" title="기본 지도 보기" aria-label="기본 지도 보기"><i class="bi bi-arrows-fullscreen" aria-hidden="true"></i></button>
               <button class="btn btn-light" id="map-zoom-in" title="지도 확대" aria-label="지도 확대"><i class="bi bi-plus-lg" aria-hidden="true"></i></button>
               <button class="btn btn-light" id="map-zoom-out" title="지도 축소" aria-label="지도 축소"><i class="bi bi-dash-lg" aria-hidden="true"></i></button>
@@ -80,7 +81,7 @@
 
   <dialog id="scope-dialog" class="app-dialog" aria-labelledby="scope-title"><div class="dialog-heading"><h2 id="scope-title">어디까지 떠나볼까요?</h2><button class="btn btn-light close-button" data-close="scope-dialog" aria-label="지역 선택 닫기"><i class="bi bi-x-lg" aria-hidden="true"></i></button></div><p class="dialog-description">선택한 시·도 안에서 추첨해요. 섬을 제외하면 다리로 연결된 섬 지역도 빠집니다.</p><div class="scope-toolbar btn-group btn-group-sm" role="group" aria-label="전체 지역 선택"><button id="select-all" class="btn btn-outline-secondary">전체 선택</button><button id="select-none" class="btn btn-outline-secondary">전체 해제</button></div><label class="island-setting"><input id="exclude-islands" type="checkbox" class="form-check-input"> 섬 여행지 제외</label><p class="island-note">제주·울릉·영종·강화·옹진·영도·신안·진도·완도·거제·남해를 제외해요. 육지와 섬이 섞인 다른 시·군은 포함해요.</p><div id="province-options" class="province-options"></div><p id="scope-error" class="error-text" role="alert"></p><button id="apply-scope" class="btn btn-primary primary-button">선택한 지역으로 설정 <i class="bi bi-check2" aria-hidden="true"></i></button></dialog>
 
-  <dialog id="help-dialog" class="app-dialog" aria-labelledby="help-title"><div class="dialog-heading"><h2 id="help-title">이용 안내</h2><button class="btn btn-light close-button" data-close="help-dialog" aria-label="안내 닫기"><i class="bi bi-x-lg" aria-hidden="true"></i></button></div><ol class="help-list"><li><b>친구와 지도 열기</b><p>지도 초대 링크를 친구에게 보내고 같은 링크에서 각자 이름을 고르세요. 링크를 가진 사람이 네 이름 중 하나로 참여할 수 있습니다.</p></li><li><b>후보 뽑기</b><p>5초 뒤 멈추거나 Enter로 먼저 멈출 수 있어요. 선택 범위에 여행지가 3곳보다 적으면 가능한 곳만 보여줘요.</p></li><li><b>한 곳 선택하기</b><p>지도 번호 또는 후보 카드를 누른 뒤 최종 확정하세요. 한 방에서 친구마다 한 번 확정할 수 있습니다. 지도에는 친구별 가장 최근 선택이, 기록에는 현재 친구의 선택 내역이 표시됩니다.</p></li></ol><p class="help-footnote">지도는 여행지 선정용입니다. 교통편과 이동 가능 여부는 출발 전에 확인해주세요.</p></dialog>
+  <dialog id="help-dialog" class="app-dialog" aria-labelledby="help-title"><div class="dialog-heading"><h2 id="help-title">이용 안내</h2><button class="btn btn-light close-button" data-close="help-dialog" aria-label="안내 닫기"><i class="bi bi-x-lg" aria-hidden="true"></i></button></div><ol class="help-list"><li><b>친구와 지도 열기</b><p>지도 초대 링크를 친구에게 보내고 같은 링크에서 각자 이름을 고르세요. 링크를 가진 사람이 네 이름 중 하나로 참여할 수 있습니다.</p></li><li><b>후보 뽑기</b><p>5초 뒤 멈추거나 Enter로 먼저 멈출 수 있어요. 선택 범위에 여행지가 3곳보다 적으면 가능한 곳만 보여줘요.</p></li><li><b>한 곳 선택하기</b><p>지도 번호 또는 후보 카드를 누른 뒤 최종 확정하세요. 한 방에서 친구마다 한 번 확정할 수 있습니다. 지도에는 친구별 가장 최근 선택이, 기록에는 현재 친구의 선택 내역이 표시됩니다.</p></li><li><b>최종 여행지 투표</b><p>네 명 모두 확정하면 각자 한 표를 보냅니다. 내 여행지에도 투표할 수 있어요. 공동 1위가 나오면 그 여행지끼리 다시 투표합니다.</p></li></ol><p class="help-footnote">지도는 여행지 선정용입니다. 교통편과 이동 가능 여부는 출발 전에 확인해주세요.</p></dialog>
   <div id="toast" role="status" class="app-toast" hidden></div>
   <noscript>이 앱을 사용하려면 브라우저의 JavaScript를 켜주세요.</noscript>
 </body>

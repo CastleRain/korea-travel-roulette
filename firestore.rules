@@ -29,6 +29,45 @@ service cloud.firestore {
         request.resource.data.ownerUid == request.auth.uid && request.resource.data.roomId == room && request.resource.data.travelerName == name;
       allow delete: if participant() && (!('ownerUid' in resource.data) || resource.data.ownerUid == request.auth.uid);
     }
+    match /tripRooms/{room}/polls/{epoch}/rounds/{round} {
+      function names(){ return ['지태근','장성우','이주열','성석근']; }
+      function roomAccess(){ return request.auth != null && room.matches('^[a-f0-9]{32}$'); }
+      function draw(i) {
+        let name=names()[i];
+        let ref=request.resource.data.refs[i];
+        return get(/databases/$(database)/documents/tripRooms/$(room)/travelers/$(name)/draws/$(ref)).data;
+      }
+      function score(v,c){
+        return (v[0]==c?1:0)+(v[1]==c?1:0)+(v[2]==c?1:0)+(v[3]==c?1:0);
+      }
+      function tied(v,c,other){
+        return c!=other && score(v,c)==score(v,other);
+      }
+      function runoff(n,c){
+        let prev=string(n-1);
+        let v=get(/databases/$(database)/documents/tripRooms/$(room)/polls/$(epoch)/rounds/$(prev)).data.votes.values();
+        let top=score(v,c);
+        return v.size()==4 && top>=score(v,v[0]) && top>=score(v,v[1]) &&
+          top>=score(v,v[2]) && top>=score(v,v[3]) &&
+          (tied(v,c,v[0]) || tied(v,c,v[1]) || tied(v,c,v[2]) || tied(v,c,v[3]));
+      }
+      function validBallot() {
+        let d=request.resource.data;
+        let a=draw(0); let b=draw(1); let c=draw(2); let e=draw(3);
+        let owner={'지태근':a,'장성우':b,'이주열':c,'성석근':e}[d.voter];
+        let choice=d.votes[d.voter];
+        return d.keys().hasOnly(['refs','n','voter','votes']) && d.refs is list && d.refs.size()==4 &&
+          d.n is int && d.n>=1 && string(d.n)==round && d.voter in names() &&
+          epoch==a.id+'_'+b.id+'_'+c.id+'_'+e.id && owner.get('ownerUid',request.auth.uid)==request.auth.uid &&
+          choice in [a.destinationId,b.destinationId,c.destinationId,e.destinationId] &&
+          (d.n==1 || runoff(d.n,choice));
+      }
+      allow get: if roomAccess();
+      allow create: if roomAccess() && request.resource.data.votes.keys().hasOnly([request.resource.data.voter]) && validBallot();
+      allow update: if roomAccess() && !(request.resource.data.voter in resource.data.votes) &&
+        request.resource.data.votes.diff(resource.data.votes).affectedKeys().hasOnly([request.resource.data.voter]) &&
+        request.resource.data.refs==resource.data.refs && validBallot();
+    }
     match /users/{uid}/draws/{drawId} {
       function owns() { return request.auth != null && request.auth.uid == uid; }
       allow get: if owns();

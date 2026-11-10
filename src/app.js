@@ -3,12 +3,14 @@ import { LocalRecords, RecordService } from './storage.js';
 import { connectFirebase } from './firebase.js';
 import { firebaseConfig } from '../firebase-config.js';
 import { currentRoom, historyFor, drawPool } from './group.js';
+import { setupPoll } from './vote.js';
 import { setupRound } from './round-ui.js';
 import { recordPage, FRIENDS } from './record-view.js';
 
 const $ = id=>document.getElementById(id);
 const ns = 'http://www.w3.org/2000/svg';
 const room = currentRoom();
+const poll=setupPoll(room);
 let catalog, round, service, selectedIds = [], name = '', pageNumber = 1;
 let savedRecords = [], sharedRecords = new Map(), firebaseState = 'connecting', unsubscribe;
 let localAvailable = false, listGeneration = 0, toastTimer, enterHeld = false;
@@ -22,7 +24,7 @@ function mapPoint(province, destination) {
   return province.id==='50' ? [x+jejuOffset[0],y+jejuOffset[1]] : [x,y];
 }
 function fitMap() {
-  if(manualView)return;
+  if(manualView){applyView();return;}
   const [left,top,right,bottom]=homeBounds;
   const points=[...candidatePoints,...pawnPoints];
   const x=Math.min(left,...points.map(p=>p[0]-24)),y=Math.min(top,...points.map(p=>p[1]-33));
@@ -55,7 +57,23 @@ function applyView() {
   const svg=$('korea-map');
   svg.setAttribute('viewBox',currentView.join(' '));
   const scale=svg.getScreenCTM()?.a;
-  if(scale>0) svg.style.setProperty('--map-label-size',`${12/scale}px`);
+  if(!(scale>0)) return;
+  svg.style.setProperty('--map-label-size',`${12/scale}px`);
+  const size=Math.min(1.1,Math.max(.72,Math.pow(1/scale,.25)));
+  for(const mark of svg.querySelectorAll('.screen-symbol')){
+    mark.setAttribute('transform',`translate(${mark.dataset.x} ${mark.dataset.y}) scale(${size/scale})`);
+  }
+  svg.style.setProperty('--pawn-name-size',`${13/size}px`);
+  svg.style.setProperty('--hit-radius',`${23/size}px`);
+}
+
+function zoom(factor,anchor) {
+  const [x,y,w,h]=currentView;
+  const width=Math.min(900,Math.max(40,w*factor)),ratio=width/w;
+  const cx=anchor?.x??x+w/2,cy=anchor?.y??y+h/2;
+  manualView=true;
+  currentView=[cx+(x-cx)*ratio,cy+(y-cy)*ratio,width,h*ratio];
+  applyView();
 }
 
 function setupMapNavigation(svg) {
@@ -67,6 +85,13 @@ function setupMapNavigation(svg) {
       Math.max(12-height*.8,Math.min(485-height*.2,y)),width,height];
     applyView();
   }
+  svg.addEventListener('wheel',event=>{
+    event.preventDefault();
+    if(!event.deltaY || gesture)return;
+    const unit=event.deltaMode===1?16:event.deltaMode===2?svg.clientHeight:1;
+    const anchor=new DOMPoint(event.clientX,event.clientY).matrixTransform(svg.getScreenCTM().inverse());
+    zoom(Math.exp(Math.max(-.6,Math.min(.6,event.deltaY*unit*.002))),anchor);
+  },{passive:false});
   svg.addEventListener('pointerdown',event=>{
     if(!event.isPrimary || event.button!==0)return;
     suppressClick=false;
@@ -158,8 +183,10 @@ function preview(options, interactive=false, selected=-1) {
     candidatePoints.push([px,y],[x,y]);
     const button=svgNode('g',{class:'map-option'+(active?' picked':''),role:'button',tabindex:0,
       'aria-label':`후보 ${i+1} · ${province.name} ${destination.name}`,'aria-pressed':active});
-    const label=svgNode('text',{x:px,y:y+4,'text-anchor':'middle'});label.textContent=i+1;
-    button.append(svgNode('line',{x1:x,y1:y,x2:px,y2:y}),svgNode('circle',{cx:px,cy:y,r:22,class:'touch-target'}),svgNode('circle',{cx:px,cy:y,r:15}),label);
+    const symbol=svgNode('g',{class:'screen-symbol','data-x':px,'data-y':y});
+    const label=svgNode('text',{x:0,y:4,'text-anchor':'middle'});label.textContent=i+1;
+    button.append(svgNode('line',{x1:x,y1:y,x2:px,y2:y}),symbol);
+    symbol.append(svgNode('circle',{r:22,class:'touch-target'}),svgNode('circle',{r:14}),label);
     button.onclick=()=>round.select(i);
     button.onkeydown=event=>{
       if(['Enter',' '].includes(event.key)){event.preventDefault();event.stopPropagation();round.select(i);shapes.querySelectorAll('[role="button"]')[i].focus();}
@@ -199,13 +226,14 @@ function renderPins() {
     if (!destination) continue;
     const [x,y]=mapPoint(province,destination);
     let px=x;
-    while(placed.some(([a,b])=>Math.abs(a-px)<26 && Math.abs(b-y)<32)) px+=28;
-    placed.push([px,y]);pawnPoints.push([px,y]);
+    while(placed.some(([a,b])=>Math.abs(a-px)<65 && Math.abs(b-y)<34)) px+=65;
+    placed.push([px,y]);pawnPoints.push([px+35,y]);
     const group=svgNode('g',{'aria-label':friend+' '+record.fullName});
     const title=svgNode('title',{});title.textContent=friend+' · '+record.fullName;
     group.append(title,svgNode('line',{x1:x,y1:y,x2:px,y2:y-7,stroke:colors[index],'stroke-width':2}));
-    const pawn=svgNode('g',{transform:`translate(${px} ${y-6})`,fill:colors[index],stroke:'white','stroke-width':1.6});
+    const pawn=svgNode('g',{class:'screen-symbol','data-x':px,'data-y':y-6,fill:colors[index],stroke:'white','stroke-width':1.6});
     pawn.append(svgNode('path',{d:'M-10 0 Q-12 -3 -7 -5 Q-3 -11 -3 -15 L3 -15 Q3 -11 7 -5 Q12 -3 10 0Z'}),svgNode('circle',{cx:0,cy:-19,r:6}));
+    const tag=svgNode('text',{x:10,y:-9,class:'pawn-name'});tag.textContent=friend;pawn.append(tag);
     group.append(pawn);layer.append(group);
   }
   fitMap();
@@ -265,6 +293,7 @@ function renderRecords() {
   });
   $('history-list').replaceChildren(...(rows.length?rows:[node('p','empty-state','후보 중 한 곳을 확정하면 여기에 남아요.')]));
   renderPins();round?.finish(finalRecord());
+  poll.update(cloud,FRIENDS.map(friend=>sharedRecords.get(friend)?.[0]),name);
 }
 
 function setupProfile() {
@@ -389,13 +418,6 @@ function setupControls() {
   $('map-reset').addEventListener('click',()=>{manualView=false;fitMap();});
   $('map-zoom-in').addEventListener('click',()=>zoom(.8));
   $('map-zoom-out').addEventListener('click',()=>zoom(1.25));
-  function zoom(factor) {
-    manualView=true;
-    const [x,y,w,h]=currentView;
-    const width=Math.min(900,Math.max(40,w*factor)),height=width*h/w;
-    currentView=[x+(w-width)/2,y+(h-height)/2,width,height];
-    applyView();
-  }
   $('export-records').addEventListener('click',()=>{
     const blob=new Blob([JSON.stringify({traveler:name,records:visibleRecords()},null,2)],{type:'application/json;charset=utf-8'});
     const url=URL.createObjectURL(blob);const link=node('a');link.href=url;link.download=`오늘어디갈까-여행기록-${new Date().toISOString().slice(0,10)}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(url),3000);

@@ -75,3 +75,30 @@ test('only the creator can delete a new final and then draw again',async()=>{
   assert.equal((await remove('alice')).status,200);
   assert.equal((await write({path,data:{...data,id:crypto.randomUUID()}})).status,200);
 });
+
+test('four friends vote once, ties require a runoff among leaders and a winner ends voting',async()=>{
+  const friends=['지태근','장성우','이주열','성석근'], room=crypto.randomUUID().replaceAll('-','');
+  const ids=friends.map(()=>crypto.randomUUID()), epoch=ids.join('_');
+  const all=['A','B','C','D'];
+  async function ballot(n,voter,votes,uid=voter) {
+    const fields={n:{integerValue:n},voter:value(friends[voter]),refs:{arrayValue:{values:friends.map(()=>value('final'))}},
+      votes:{mapValue:{fields:Object.fromEntries(votes.map((v,i)=>[friends[i],value(v)]))}}};
+    return (await fetch(base+'/tripRooms/'+room+'/polls/'+epoch+'/rounds/'+n,{method:'PATCH',
+      headers:{'Content-Type':'application/json',Authorization:'Bearer '+token('u'+uid)},body:JSON.stringify({fields})})).status;
+  }
+  for(const [i,name] of friends.entries()){
+    assert.equal(await ballot(1,0,['A']),403);
+    const data={...payload(ids[i]),roomId:room,travelerName:name,ownerUid:'u'+i,destinationId:all[i]};
+    assert.equal((await write({uid:'u'+i,path:`tripRooms/${room}/travelers/${name}/draws/final`,data})).status,200);
+  }
+  assert.equal(await ballot(1,0,['A'],1),403);
+  assert.equal(await ballot(1,0,['A']),200);
+  assert.equal(await ballot(1,0,['B']),403);
+  assert.equal(await ballot(2,0,['A']),403);
+  assert.equal(await ballot(1,1,['A','A']),200);
+  assert.equal(await ballot(1,2,['A','A','B']),200);
+  assert.equal(await ballot(1,3,['A','A','B','B']),200);
+  assert.equal(await ballot(2,0,['C']),403);
+  for(let i=0;i<4;i++)assert.equal(await ballot(2,i,Array(i+1).fill('B')),200);
+  assert.equal(await ballot(3,0,['B']),403);
+});
