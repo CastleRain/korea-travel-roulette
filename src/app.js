@@ -18,6 +18,7 @@ let localAvailable = false, listGeneration = 0, toastTimer, enterHeld = false;
 const jejuOffset = [220,-87];
 const homeBounds = [98,4,440,486];
 let excludeIslands=false, deleting=false;
+let fittedWidth=homeBounds[2]-homeBounds[0];
 let currentView, cloud, manualView=false, candidatePoints=[], pawnPoints=[];
 function mapPoint(province, destination) {
   const [x,y]=destination.labelPoint;
@@ -29,7 +30,7 @@ function fitMap() {
   const points=[...candidatePoints,...pawnPoints];
   const x=Math.min(left,...points.map(p=>p[0]-24)),y=Math.min(top,...points.map(p=>p[1]-33));
   const r=Math.max(right,...points.map(p=>p[0]+24)),b=Math.max(bottom,...points.map(p=>p[1]+22));
-  currentView=[x,y,r-x,b-y];applyView();
+  fittedWidth=r-x;currentView=[x,y,fittedWidth,b-y];applyView();
 }
 const colors = ['#973d55','#21637a','#977022','#3c7055'];
 const shortNames = {'서울특별시':'서울','부산광역시':'부산','대구광역시':'대구','인천광역시':'인천','대전광역시':'대전','울산광역시':'울산','세종특별자치시':'세종','경기도':'경기','강원특별자치도':'강원','충청북도':'충북','충청남도':'충남','전북특별자치도':'전북','경상북도':'경북','경상남도':'경남','제주특별자치도':'제주','전남광주통합특별시':'전남광주'};
@@ -59,7 +60,10 @@ function applyView() {
   const scale=svg.getScreenCTM()?.a;
   if(!(scale>0)) return;
   svg.style.setProperty('--map-label-size',`${12/scale}px`);
-  const size=Math.min(1.1,Math.max(.72,Math.pow(1/scale,.25)));
+  const magnification=fittedWidth/currentView[2];
+  $('map-scale').textContent=Math.round(magnification*100)+'%';
+  const size=Math.max(.53,Math.min(1.18,1/magnification));
+  svg.style.setProperty('--marker-number-size',`${Math.max(10,13*size)/size}px`);
   for(const mark of svg.querySelectorAll('.screen-symbol')){
     mark.setAttribute('transform',`translate(${mark.dataset.x} ${mark.dataset.y}) scale(${size/scale})`);
   }
@@ -85,13 +89,15 @@ function setupMapNavigation(svg) {
       Math.max(12-height*.8,Math.min(485-height*.2,y)),width,height];
     applyView();
   }
-  svg.addEventListener('wheel',event=>{
+  svg.closest('.map-card').addEventListener('wheel',event=>{
     event.preventDefault();
     if(!event.deltaY || gesture)return;
     const unit=event.deltaMode===1?16:event.deltaMode===2?svg.clientHeight:1;
-    const anchor=new DOMPoint(event.clientX,event.clientY).matrixTransform(svg.getScreenCTM().inverse());
-    zoom(Math.exp(Math.max(-.6,Math.min(.6,event.deltaY*unit*.002))),anchor);
-  },{passive:false});
+    const anchor=svg.contains(event.target)
+      ? new DOMPoint(event.clientX,event.clientY).matrixTransform(svg.getScreenCTM().inverse())
+      : undefined;
+    zoom(Math.exp(Math.max(-.6,Math.min(.6,event.deltaY*unit*.0035))),anchor);
+  },{capture:true,passive:false});
   svg.addEventListener('pointerdown',event=>{
     if(!event.isPrimary || event.button!==0)return;
     suppressClick=false;
@@ -311,6 +317,7 @@ function setupProfile() {
   }
   for(const friend of FRIENDS) for(const id of ['traveler-choices','profile-choices']) {
     const button=node('button','btn btn-outline-secondary',friend);
+    button.style.setProperty('--person-color',colors[FRIENDS.indexOf(friend)]);
     button.type='button';button.onclick=()=>choose(friend);$(id).append(button);
   }
   $('profile-open').setAttribute('aria-label','친구 선택');

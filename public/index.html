@@ -32,7 +32,7 @@
       <button id="records-toggle" class="btn btn-sm btn-outline-secondary" aria-controls="records-panel" aria-expanded="false"><i class="bi bi-journal-text" aria-hidden="true"></i> <span id="records-toggle-label">여행 기록 펼치기</span></button>
     </section>
 
-    <div class="travelers-bar"><span><i class="bi bi-people" aria-hidden="true"></i> 여행자</span><div id="traveler-choices" class="btn-group" role="group" aria-label="추첨할 사람"></div><p id="active-traveler" role="status">이름을 선택해주세요</p></div><div class="mobile-views btn-group" role="group" aria-label="화면 선택"><button id="view-draw" class="btn btn-outline-secondary active" aria-pressed="true">여행지 뽑기</button><button id="view-records" class="btn btn-outline-secondary" aria-pressed="false">기록 보기</button></div>
+    <div class="travelers-bar"><span><i class="bi bi-people" aria-hidden="true"></i> 여행자</span><div id="traveler-choices" class="traveler-segments" role="group" aria-label="추첨할 사람"></div><p id="active-traveler" role="status">이름을 선택해주세요</p></div><div class="mobile-views btn-group" role="group" aria-label="화면 선택"><button id="view-draw" class="btn btn-outline-secondary active" aria-pressed="true">여행지 뽑기</button><button id="view-records" class="btn btn-outline-secondary" aria-pressed="false">기록 보기</button></div>
     <section id="poll" class="poll-card" hidden aria-labelledby="poll-title"><h2 id="poll-title">최종 여행지 투표</h2><p id="poll-status" role="status"></p><div id="poll-choices"></div></section>
     <section class="row g-4 workspace" id="roulette" aria-label="여행지 추첨">
       <div class="map-column">
@@ -41,13 +41,13 @@
           <div class="map-area" id="map-area">
             <svg id="korea-map" viewBox="0 0 640 650" role="group" tabindex="0" aria-describedby="map-gesture" aria-labelledby="map-title"><title id="map-title">대한민국 행정구역 지도 · 데이터를 불러오는 중</title></svg>
             <span id="map-gesture">드래그로 이동 · 휠로 확대/축소</span><div class="map-controls btn-group-vertical" role="group" aria-label="지도 보기 조정">
-              <button class="btn btn-light" id="map-reset" title="기본 지도 보기" aria-label="기본 지도 보기"><i class="bi bi-arrows-fullscreen" aria-hidden="true"></i></button>
+              <span id="map-scale" title="지도 배율">100%</span><button class="btn btn-light" id="map-reset" title="기본 지도 보기" aria-label="기본 지도 보기"><i class="bi bi-arrows-fullscreen" aria-hidden="true"></i></button>
               <button class="btn btn-light" id="map-zoom-in" title="지도 확대" aria-label="지도 확대"><i class="bi bi-plus-lg" aria-hidden="true"></i></button>
               <button class="btn btn-light" id="map-zoom-out" title="지도 축소" aria-label="지도 축소"><i class="bi bi-dash-lg" aria-hidden="true"></i></button>
             </div>
           </div>
           <div id="province-picks" class="province-picks" hidden></div><div class="pawn-legend" id="pawn-legend" aria-label="친구별 마지막 여행지"></div>
-          <div class="map-footer"><button id="map-confirm" class="btn btn-primary btn-sm" hidden></button><button id="invite" class="btn btn-sm btn-light"><i class="bi bi-link-45deg"></i> 지도 초대 링크</button><span id="map-caption" role="status">공유 지도 연결 중</span></div>
+          <div class="map-footer"><button id="map-confirm" class="btn btn-primary btn-sm" hidden></button><button id="invite" class="btn btn-sm btn-light"><i class="bi bi-box-arrow-up" aria-hidden="true"></i> 초대 링크 복사</button><span id="map-caption" role="status">공유 지도 연결 중</span></div>
         </div>
       </div>
 
