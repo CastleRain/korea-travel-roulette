@@ -1,0 +1,10 @@
+import { cp, mkdir, rm, readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+const root = fileURLToPath(new URL('../', import.meta.url));
+const data = JSON.parse(await readFile(new URL('../public/data/regions.json', import.meta.url)));
+if (!data.provinces?.length || data.provinces.some(p => !p.path || !p.destinations?.length)) throw new Error('지역 데이터가 불완전합니다.');
+await rm(new URL('../dist/', import.meta.url), { recursive: true, force: true });
+await mkdir(new URL('../dist/', import.meta.url), { recursive: true });
+await cp(new URL('../public/', import.meta.url), new URL('../dist/', import.meta.url), { recursive: true });
+await cp(new URL('../src/', import.meta.url), new URL('../dist/src/', import.meta.url), { recursive: true });
+console.log(`Build OK: ${root}dist (${data.provinces.length}개 시·도 / ${data.provinces.reduce((n,p)=>n+p.destinations.length,0)}개 최종 후보)`);

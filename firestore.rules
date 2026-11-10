@@ -1,0 +1,27 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid}/draws/{drawId} {
+      function owns() { return request.auth != null && request.auth.uid == uid; }
+      function validDraw() {
+        let d = request.resource.data;
+        return d.keys().hasOnly(['id','provinceId','provinceName','destinationId','destinationName','fullName','singleStage','dataVersion','drawnAt','savedAt'])
+          && d.keys().hasAll(['id','provinceId','provinceName','destinationId','destinationName','fullName','singleStage','dataVersion','drawnAt','savedAt'])
+          && drawId.matches('^[a-f0-9-]{36}$') && d.id == drawId
+          && d.provinceId is string && d.provinceId.matches('^[0-9]{2}$')
+          && d.provinceName is string && d.provinceName.size() > 0 && d.provinceName.size() <= 40
+          && d.destinationId is string && d.destinationId.size() > 0 && d.destinationId.size() <= 80
+          && d.destinationName is string && d.destinationName.size() > 0 && d.destinationName.size() <= 40
+          && d.fullName is string && d.fullName.size() > 0 && d.fullName.size() <= 100
+          && d.singleStage is bool && d.dataVersion == '2026-10-01'
+          && d.drawnAt is string && d.drawnAt.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.]+Z$')
+          && d.savedAt == request.time;
+      }
+      allow get: if owns();
+      allow list: if owns() && request.query.limit <= 100;
+      allow create: if owns() && validDraw();
+      allow update, delete: if false;
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}
