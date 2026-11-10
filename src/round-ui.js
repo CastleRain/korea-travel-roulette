@@ -57,7 +57,9 @@ export function setupRound({catalog, room, traveler, scope, finalRecord, onBusy,
     render();
   }
   function finish(record) {
-    if (!record || phase === 'done') return;
+    if (!record) { if (phase === 'done') reset(); return; }
+    if (phase === 'done' && id===record.id) return;
+    id=record.id;
     clearTimeout(timer);
     persist(null);
     const province=catalog.provinces.find(p=>p.id===record.provinceId);
@@ -95,7 +97,7 @@ export function setupRound({catalog, room, traveler, scope, finalRecord, onBusy,
       render();
       return;
     }
-    const pool = catalog.provinces.filter(p => scope().includes(p.id));
+    const pool = scope();
     selected = -1;
     phase = 'spin';
     deadline = Date.now() + 5000;
@@ -119,8 +121,9 @@ export function setupRound({catalog, room, traveler, scope, finalRecord, onBusy,
       try {
         const draft = JSON.parse(sessionStorage.getItem(key()));
         if (draft?.id && draft.pairs.length) {
+          const pool=scope();
           options = draft.pairs.map(([p,d]) => {
-            const province = catalog.provinces.find(item => item.id === p);
+            const province = pool.find(item => item.id === p);
             const destination = province.destinations.find(item => item.id === d);
             if (!destination) throw Error();
             return {province,destination};

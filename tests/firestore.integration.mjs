@@ -47,7 +47,7 @@ test('empty, whitespace-only, overlength or incorrectly typed display names are 
 test('two anonymous devices share a room selection, with immutable scoped writes',async()=>{
   const room='a'.repeat(32), name='지태근', drawId=crypto.randomUUID();
   const path=`tripRooms/${room}/travelers/${name}/draws/${drawId}`;
-  const data={...payload(drawId),roomId:room,travelerName:name};
+  const data={...payload(drawId),roomId:room,travelerName:name,ownerUid:'alice'};
   assert.equal((await write({path,data,auth:false})).status,403);
   assert.equal((await write({path,data:{...data,travelerName:'장성우'}})).status,403);
   assert.equal((await write({path,data:{...data,roomId:'b'.repeat(32)}})).status,403);
@@ -59,9 +59,19 @@ test('two anonymous devices share a room selection, with immutable scoped writes
 
 test('only one final selection can win for a friend, including concurrent requests', async()=>{
   const room='b'.repeat(32), name='장성우', prefix=`tripRooms/${room}/travelers/${name}/draws/`;
-  const draw=()=>({...payload(crypto.randomUUID()),roomId:room,travelerName:name});
-  const responses=await Promise.all(['alice','bob'].map(uid=>write({uid,path:prefix+'final',data:draw()})));
+  const draw=(uid='alice')=>({...payload(crypto.randomUUID()),roomId:room,travelerName:name,ownerUid:uid});
+  const responses=await Promise.all(['alice','bob'].map(uid=>write({uid,path:prefix+'final',data:draw(uid)})));
   assert.deepEqual(responses.map(r=>r.status).sort(),[200,403]);
   const another=draw();
   assert.equal((await write({path:prefix+another.id,data:another})).status,403);
+});
+
+test('only the creator can delete a new final and then draw again',async()=>{
+  const room='c'.repeat(32), name='이주열', path=`tripRooms/${room}/travelers/${name}/draws/final`;
+  const data={...payload(crypto.randomUUID()),roomId:room,travelerName:name,ownerUid:'alice'};
+  const remove=uid=>fetch(base+'/'+path,{method:'DELETE',headers:{Authorization:'Bearer '+token(uid)}});
+  assert.equal((await write({path,data})).status,200);
+  assert.equal((await remove('bob')).status,403);
+  assert.equal((await remove('alice')).status,200);
+  assert.equal((await write({path,data:{...data,id:crypto.randomUUID()}})).status,200);
 });

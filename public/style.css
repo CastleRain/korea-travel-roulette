@@ -372,3 +372,13 @@ kbd { background: transparent; color: #d7e1ef; border: 1px solid #526079; font-f
 .route-preview.picked{fill:#55a58d;stroke:#194e40}
 @media(min-width:992px){.workspace .map-card{min-height:660px}}
 @media(max-width:991px){.workspace .map-area{min-height:clamp(405px,110vw,590px)}}
+
+.province-path.has-candidate{fill:#aac9c3;cursor:pointer}
+.province-path.has-candidate:hover{fill:#91b6af}
+.map-option .touch-target,.map-option.picked .touch-target,.map-option:focus .touch-target{fill:transparent;stroke:none;pointer-events:all}
+.map-option,.route-preview,.province-path.has-candidate{touch-action:manipulation}
+.province-picks{padding:8px 16px;display:flex;gap:6px;flex-wrap:wrap}
+.island-setting{display:flex;align-items:center;gap:8px;margin-top:14px;font-weight:650}
+.island-note{font-size:12px;color:var(--muted);margin:6px 0 12px}
+#clear-history{align-self:flex-end;margin-top:8px}
+@media(max-width:575px){.header-inner{gap:7px}.brand{font-size:17px;gap:5px}.brand>.bi{font-size:20px}}

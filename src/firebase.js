@@ -17,12 +17,13 @@ export async function connectFirebase(config) {
   const db = firestoreSdk.getFirestore(app);
   const folder = firestoreSdk.collection(db,'users',user.uid,'draws');
   return {
+    uid:user.uid,
     async save(record) {
       const target = record.roomId ? firestoreSdk.collection(db,'tripRooms',record.roomId,'travelers',record.travelerName,'draws') : folder;
       const ref = firestoreSdk.doc(target,record.id);
       // Stable UUID + existing-document check makes retries idempotent.
       if ((await timeout(firestoreSdk.getDocFromServer(ref))).exists()) return;
-      await timeout(firestoreSdk.setDoc(ref,{...record,savedAt:firestoreSdk.serverTimestamp()}));
+      await timeout(firestoreSdk.setDoc(ref,{...record,...(record.roomId?{ownerUid:user.uid}:{}),savedAt:firestoreSdk.serverTimestamp()}));
     },
     async finalize(record) {
       const draws = firestoreSdk.collection(db,'tripRooms',record.roomId,'travelers',record.travelerName,'draws');
@@ -33,8 +34,18 @@ export async function connectFirebase(config) {
       return timeout(firestoreSdk.runTransaction(db,async transaction=>{
         const snap=await transaction.get(ref);
         if(snap.exists()) return snap.data();
-        transaction.set(ref,{...record,savedAt:firestoreSdk.serverTimestamp()});
+        transaction.set(ref,{...record,ownerUid:user.uid,savedAt:firestoreSdk.serverTimestamp()});
         return record;
+      }));
+    },
+    async remove(record) {
+      const collection=record.roomId ? firestoreSdk.collection(db,'tripRooms',record.roomId,'travelers',record.travelerName,'draws') : folder;
+      const refs=record.roomId ? ['final',record.id] : [record.id];
+      await timeout(firestoreSdk.runTransaction(db,async tx=>{
+        const docs=await Promise.all(refs.map(id=>tx.get(firestoreSdk.doc(collection,id))));
+        for(const doc of docs) {
+          if(doc.exists() && doc.data().id===record.id && doc.data().travelerName===record.travelerName) tx.delete(doc.ref);
+        }
       }));
     },
     watch(room, names, receive, fail) {
@@ -42,6 +53,7 @@ export async function connectFirebase(config) {
         const records = firestoreSdk.collection(db,'tripRooms',room,'travelers',name,'draws');
         const query = firestoreSdk.query(records,firestoreSdk.orderBy('drawnAt','desc'),firestoreSdk.limit(100));
         return firestoreSdk.onSnapshot(query, {includeMetadataChanges:true}, snapshot => {
+          if(snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites)return;
           receive(name,snapshot.docs.filter(doc=>!doc.metadata.hasPendingWrites).map(doc=>({...doc.data(),syncState:'synced'})));
         },fail);
       });

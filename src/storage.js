@@ -22,6 +22,7 @@ export class LocalRecords {
       tx.onabort = ()=>reject(tx.error || new Error('로컬 저장이 취소되었습니다.'));
     });
   }
+  remove(id) { return this.transaction('readwrite',store=>store.delete(id)); }
   put(record) { return this.transaction('readwrite',store=>store.put(record)); }
   async all() { return (await this.transaction('readonly',store=>store.getAll())).sort((a,b)=>b.drawnAt.localeCompare(a.drawnAt)); }
 }
@@ -40,6 +41,12 @@ export class RecordService {
     if ((await this.all()).some(r=>r.id===record.id)) return;
     await this.retain({...record,travelerName,syncState:'candidate'});
     await this.notify();
+  }
+  async remove(record) {
+    if (!this.remote || this.inflight.has(record.id) || this.saves.has(record.id)) throw Error('저장소 연결을 확인한 뒤 다시 시도해주세요.');
+    await this.remote.remove(record);
+    if(this.local.db) await this.local.remove(record.id);
+    this.memory.delete(record.id);
   }
   async retain(record) {
     this.memory.set(record.id,record);

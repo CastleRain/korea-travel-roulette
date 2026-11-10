@@ -1,5 +1,15 @@
 import { uniformIndex } from './roulette.js';
 
+// Island-based municipalities in the pinned 2026-10 catalog, including bridged islands.
+const islandNames = new Set(['제주시','서귀포시','영종구','강화군','옹진군','영도구','울릉군','신안군','진도군','완도군','거제시','남해군']);
+
+export function drawPool(provinces, ids, excludeIslands) {
+  const selected = provinces.filter(p=>ids.includes(p.id));
+  if (!excludeIslands) return selected;
+  return selected.map(p=>({...p,destinations:p.destinations.filter(d=>!islandNames.has(d.name))}))
+    .filter(p=>p.destinations.length);
+}
+
 export function drawOptions(provinces, pick = uniformIndex) {
   const pools = provinces.map(province => ({province, remaining: [...province.destinations]}));
   const options = [];
