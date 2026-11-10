@@ -93,7 +93,7 @@ h2,.app-dialog h2{font-size:var(--heading);font-weight:700;letter-spacing:-.035e
 .scope-button{width:100%;justify-content:flex-start;background:#2d493b;color:white}
 .scope-button:hover,.scope-button:disabled{color:#fff;background:#375343}
 .scope-button b{margin-left:auto}.draw-options p{margin-top:8px;font-size:var(--detail)}
-.records-panel{padding:18px;gap:12px}.section-heading h2{margin-right:auto}
+.workspace.row>.records-panel{padding:18px;gap:12px}.section-heading h2{margin-right:auto}
 .records-panel #history{flex:1;min-height:0;overflow:auto;max-height:440px}
 .history-list{border-radius:0}.history-row.list-group-item{display:flex;align-items:center;gap:6px;padding:12px 0;border:0;border-bottom:1px solid var(--line)}
 .history-info{flex:1;min-width:0}.history-info h3{font-size:var(--body);font-weight:650}
@@ -142,7 +142,7 @@ h2,.app-dialog h2{font-size:var(--heading);font-weight:700;letter-spacing:-.035e
  .travelers-bar{gap:6px 12px;margin:14px 0}.travelers-bar>span{display:none}
  #traveler-choices{width:100%}.travelers-bar .btn{padding-inline:5px}
  .travelers-bar p{margin-left:0;font-size:var(--detail)}
- .workspace .draw-card,.records-panel,.app-dialog{padding:16px}
+ .workspace .draw-card,.workspace.row>.records-panel,.app-dialog{padding:16px}
  .map-heading,.map-footer,.pawn-legend,.province-picks{padding:12px}
  #map-caption{margin:0}#map-gesture{font-size:var(--detail)}
 }
