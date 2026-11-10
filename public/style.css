@@ -191,3 +191,24 @@ h2,.app-dialog h2{font-size:var(--heading);font-weight:700;letter-spacing:-.035e
 .ballot-option.picked,.ballot-option.winner{background:#edf5ff;border-color:var(--accent)}.ballot-option.picked span,.ballot-option.winner span{background:var(--accent);color:white;border-color:var(--accent)}
 #cast-ballot{margin-top:12px}
 @media(max-width:720px){.intro{flex-wrap:wrap}.travelers-bar p{padding:2px 6px}.trip-actions .btn{min-height:38px}}
+
+/* Keep the active traveler and their destination status independently visible. */
+.traveler-segments .btn,.profile-choices .btn{display:grid;grid-template-columns:auto auto;justify-items:start;column-gap:6px;row-gap:2px}
+.traveler-status{grid-column:1/-1;display:inline-flex;align-items:center;gap:4px;color:#536174;font-size:.75rem;font-weight:550;line-height:1.4}
+.traveler-status.confirmed{color:#086348}
+#scope-dialog{width:min(570px,calc(100% - 24px));padding:0;overflow:hidden}
+#scope-dialog[open]{display:flex;flex-direction:column}
+#scope-dialog .dialog-heading,.scope-tools,.scope-bottom{padding:14px 20px;margin:0;flex:none}
+.scope-tools{display:flex;align-items:center;justify-content:space-between;border-block:1px solid var(--line);padding-block:8px;background:#f1f6ff}
+#scope-islands,.scope-count{font-size:var(--detail);color:var(--muted)}
+.scope-tools .btn{font-size:var(--detail);min-height:36px}
+#province-options{padding:14px 20px;overflow-y:auto;min-height:0;overscroll-behavior:contain}
+.scope-group{margin:0 0 14px}.scope-group:last-child{margin:0}
+.scope-group legend{float:none;width:auto;font-size:var(--detail);font-weight:650;color:var(--muted);margin:0 0 5px}
+.scope-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.scope-grid .scope-option{background:white;gap:6px;min-width:0}
+.scope-grid .scope-option:has(:checked){background:#edf4ff;border-color:#9bbbe3}
+.scope-count{margin-left:auto;white-space:nowrap}
+.scope-bottom{border-top:1px solid var(--line);background:#fff}
+#scope-summary{font-weight:650;margin-bottom:7px}#scope-error:empty{display:none}
+@media(max-width:520px){.scope-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.scope-count{font-size:.75rem}#scope-dialog .dialog-heading,.scope-tools,.scope-bottom,#province-options{padding-inline:14px}}

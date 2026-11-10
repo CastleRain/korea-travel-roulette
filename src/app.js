@@ -308,10 +308,25 @@ function renderRecords() {
     return row;
   });
   $('history-list').replaceChildren(...(rows.length?rows:[node('p','empty-state','후보 중 한 곳을 확정하면 여기에 남아요.')]));
-  renderPins();round?.finish(finalRecord());
+  renderTravelerStatus();renderPins();round?.finish(finalRecord());
   poll.update(cloud,FRIENDS.map(friend=>sharedRecords.get(friend)?.[0]),name);
 }
 
+function renderTravelerStatus() {
+  for(const button of document.querySelectorAll('#traveler-choices button, #profile-choices button')) {
+    const friend=button.dataset.friend;
+    const record=sharedRecords.get(friend)?.[0];
+    const known=sharedRecords.has(friend);
+    const status=record?'확정':known?'미선택':firebaseState==='error'?'연결 대기':'확인 중';
+    const badge=button.querySelector('.traveler-status');
+    badge.classList.toggle('confirmed',Boolean(record));
+    badge.textContent=status;
+    badge.prepend(icon(record?'check-circle-fill':known?'circle':'three-dots'));
+    button.title=record ? friend+' · '+record.fullName+' 확정' : friend+' · '+status;
+    button.setAttribute('aria-pressed',String(friend===name));
+    button.classList.toggle('active',friend===name);
+  }
+}
 function setupProfile() {
   function choose(friend) {
     name=friend;pageNumber=1;
@@ -319,14 +334,11 @@ function setupProfile() {
     $('profile-name').textContent=friend;
     $('profile-cancel').hidden=false;
     $('active-traveler').textContent=friend+' 님의 차례';
-    for(const b of $('traveler-choices').children) {
-      b.classList.toggle('active',b.textContent===friend);
-      b.setAttribute('aria-pressed',String(b.textContent===friend));
-    }
     round?.reset(true);renderRecords();
   }
   for(const friend of FRIENDS) for(const id of ['traveler-choices','profile-choices']) {
     const button=node('button','btn btn-outline-secondary',friend);
+    button.dataset.friend=friend;button.append(node('small','traveler-status','확인 중'));
     button.style.setProperty('--person-color',colors[FRIENDS.indexOf(friend)]);
     button.type='button';button.onclick=()=>choose(friend);$(id).append(button);
   }
@@ -376,10 +388,38 @@ async function initializeCloud() {
 }
 
 function setupScope() {
-  for (const p of catalog.provinces) {
-    const label=node('label','scope-option');const input=node('input','form-check-input');input.type='checkbox';input.value=p.id;input.checked=true;
-    label.append(input,document.createTextNode(p.name));$('province-options').append(label);
+  const list=$('province-options');
+  const regions=[
+    ['수도권',['11','28','41']],['강원·제주',['51','50']],
+    ['충청권',['30','36','43','44']],['호남권',['52','12']],
+    ['영남권',['26','27','31','47','48']]
+  ];
+  const inputs=[];
+  const counts=new Map();
+  for(const [region,ids] of regions){
+    const group=node('fieldset','scope-group');
+    group.append(node('legend','',region));
+    const grid=node('div','scope-grid');
+    for(const id of ids){
+      const p=catalog.provinces.find(item=>item.id===id);
+      const label=node('label','scope-option');
+      const input=node('input','form-check-input');input.type='checkbox';input.value=id;
+      const count=node('small','scope-count');
+      label.append(input,node('span','',shortNames[p.name]||p.name),count);
+      label.title=p.name;grid.append(label);inputs.push(input);counts.set(id,count);
+    }
+    group.append(grid);list.append(group);
   }
+  const checkedIds=()=>inputs.filter(i=>i.checked).map(i=>i.value);
+  function updateScope(){
+    const ids=checkedIds();
+    const pool=drawPool(catalog.provinces,ids,excludeIslands);
+    const total=pool.reduce((sum,p)=>sum+p.destinations.length,0);
+    $('scope-summary').textContent=`시·도 ${ids.length}곳 선택 · 여행지 후보 ${total}곳`;
+    $('apply-scope').disabled=!total;
+    $('scope-error').textContent=total?'':ids.length?'섬 제외 후 후보가 없습니다. 다른 시·도를 추가해주세요.':'추첨할 시·도를 한 곳 이상 선택해주세요.';
+  }
+  list.onchange=updateScope;
   $('exclude-islands').onchange=()=>{
     const checked=$('exclude-islands').checked;
     if(!drawPool(catalog.provinces,selectedIds,checked).length){
@@ -388,13 +428,20 @@ function setupScope() {
     excludeIslands=checked;round.reset();
   };
   $('scope-open').addEventListener('click',()=>{
-    for(const input of $('province-options').querySelectorAll('input')) input.checked=selectedIds.includes(input.value);
-    $('scope-error').textContent='';$('scope-dialog').showModal();
+    const pool=drawPool(catalog.provinces,catalog.provinces.map(p=>p.id),excludeIslands);
+    for(const input of inputs){
+      input.checked=selectedIds.includes(input.value);
+      const province=pool.find(p=>p.id===input.value);
+      counts.get(input.value).textContent=(province?.destinations.length||0)+'곳';
+    }
+    $('scope-islands').textContent=excludeIslands?'섬 제외 적용 중':'섬 포함';
+    updateScope();$('scope-dialog').showModal();list.scrollTop=0;
   });
-  $('select-all').addEventListener('click',()=>{for(const i of $('province-options').querySelectorAll('input')) i.checked=true;});
-  $('select-none').addEventListener('click',()=>{for(const i of $('province-options').querySelectorAll('input')) i.checked=false;});
+  for(const [id,checked] of [['select-all',true],['select-none',false]]){
+    $(id).onclick=()=>{for(const input of inputs)input.checked=checked;updateScope();};
+  }
   $('apply-scope').addEventListener('click',()=>{
-    const ids=[...$('province-options').querySelectorAll('input:checked')].map(i=>i.value);
+    const ids=checkedIds();
     if(!ids.length){$('scope-error').textContent='추첨할 시·도를 하나 이상 선택해주세요.';return;}
     const exclude=$('exclude-islands').checked;
     if(!drawPool(catalog.provinces,ids,exclude).length){$('scope-error').textContent='섬 제외 후 남는 여행지가 없습니다. 다른 시·도를 추가해주세요.';return;}

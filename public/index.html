@@ -85,7 +85,12 @@
     <div id="profile-choices" class="profile-choices" role="group" aria-label="친구 이름 선택"></div>
   </form></dialog>
 
-  <dialog id="scope-dialog" class="app-dialog" aria-labelledby="scope-title"><div class="dialog-heading"><h2 id="scope-title">어디까지 떠나볼까요?</h2><button class="btn btn-light close-button" data-close="scope-dialog" aria-label="지역 선택 닫기"><i class="bi bi-x-lg" aria-hidden="true"></i></button></div><p class="dialog-description">선택한 시·도 안에서 추첨해요. 섬을 제외하면 다리로 연결된 섬 지역도 빠집니다.</p><div class="scope-toolbar btn-group btn-group-sm" role="group" aria-label="전체 지역 선택"><button id="select-all" class="btn btn-outline-secondary">전체 선택</button><button id="select-none" class="btn btn-outline-secondary">전체 해제</button></div><div id="province-options" class="province-options"></div><p id="scope-error" class="error-text" role="alert"></p><button id="apply-scope" class="btn btn-primary primary-button">선택한 지역으로 설정 <i class="bi bi-check2" aria-hidden="true"></i></button></dialog>
+  <dialog id="scope-dialog" class="app-dialog" aria-labelledby="scope-title">
+    <div class="dialog-heading"><h2 id="scope-title">추첨 지역 선택</h2><button type="button" class="btn btn-light close-button" data-close="scope-dialog" aria-label="지역 선택 닫기"><i class="bi bi-x-lg" aria-hidden="true"></i></button></div>
+    <div class="scope-tools"><span id="scope-islands"></span><div class="btn-group" role="group" aria-label="일괄 선택"><button id="select-all" class="btn btn-light">전체 선택</button><button id="select-none" class="btn btn-light">전체 해제</button></div></div>
+    <div id="province-options"></div>
+    <div class="scope-bottom"><p id="scope-summary" role="status"></p><p id="scope-error" class="error-text"></p><button id="apply-scope" class="btn btn-primary primary-button">선택한 지역 적용 <i class="bi bi-check2" aria-hidden="true"></i></button></div>
+  </dialog>
 
   <dialog id="help-dialog" class="app-dialog" aria-labelledby="help-title"><div class="dialog-heading"><h2 id="help-title">이용 안내</h2><button class="btn btn-light close-button" data-close="help-dialog" aria-label="안내 닫기"><i class="bi bi-x-lg" aria-hidden="true"></i></button></div><ol class="help-list"><li><b>친구와 지도 열기</b><p>지도 초대 링크를 친구에게 보내고 같은 링크에서 각자 이름을 고르세요. 링크를 가진 사람이 네 이름 중 하나로 참여할 수 있습니다.</p></li><li><b>후보 뽑기</b><p>5초 뒤 멈추거나 Enter로 먼저 멈출 수 있어요. 선택 범위에 여행지가 3곳보다 적으면 가능한 곳만 보여줘요.</p></li><li><b>한 곳 선택하기</b><p>지도 번호 또는 후보 카드를 누른 뒤 최종 확정하세요. 한 방에서 친구마다 한 번 확정할 수 있습니다. 지도에는 친구별 가장 최근 선택이, 기록에는 현재 친구의 선택 내역이 표시됩니다.</p></li><li><b>최종 여행지 투표</b><p>네 명 모두 확정하면 각자 한 표를 보냅니다. 내 여행지에도 투표할 수 있어요. 공동 1위가 나오면 그 여행지끼리 다시 투표합니다.</p></li></ol><p class="help-footnote">지도는 여행지 선정용입니다. 교통편과 이동 가능 여부는 출발 전에 확인해주세요.</p></dialog>
   <div id="toast" role="status" class="app-toast" hidden></div>
