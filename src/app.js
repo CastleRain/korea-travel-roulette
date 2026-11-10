@@ -390,11 +390,6 @@ function setupScope() {
 
 function setupControls() {
   for(const [id,delta] of [['records-prev',-1],['records-next',1]]) $(id).onclick=()=>{pageNumber+=delta;renderRecords();};
-  $('invite').onclick=async()=>{
-    const url=new URL(location.href);url.hash='';
-    try {await navigator.clipboard.writeText(url.href);toast('지도 초대 링크를 복사했어요. 친구에게 보내주세요.');}
-    catch {window.prompt('친구에게 보낼 지도 초대 링크',url.href);}
-  };
   function showRecords(open,restoreFocus=false) {
     $('records-panel').hidden=!open;
     document.body.classList.toggle('records-collapsed',!open);
@@ -438,6 +433,11 @@ function setupControls() {
 async function main() {
   const local=new LocalRecords();
   service=new RecordService(local,{notify:refreshHistory});
+  $('invite').onclick=async()=>{
+    const url=new URL(location.href);url.hash='';
+    try {await navigator.clipboard.writeText(url.href);toast('지도 초대 링크를 복사했어요. 친구에게 보내주세요.');}
+    catch {window.prompt('친구에게 보낼 지도 초대 링크',url.href);}
+  };
   setupProfile();
   try {await local.open();localAvailable=true;} catch {localAvailable=false;}
   await refreshHistory();
