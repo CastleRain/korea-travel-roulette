@@ -7,4 +7,10 @@ await rm(new URL('../dist/', import.meta.url), { recursive: true, force: true })
 await mkdir(new URL('../dist/', import.meta.url), { recursive: true });
 await cp(new URL('../public/', import.meta.url), new URL('../dist/', import.meta.url), { recursive: true });
 await cp(new URL('../src/', import.meta.url), new URL('../dist/src/', import.meta.url), { recursive: true });
+await mkdir(new URL('../dist/vendor/icons/fonts/', import.meta.url), { recursive: true });
+await cp(new URL('../node_modules/bootstrap/dist/css/bootstrap.min.css', import.meta.url),new URL('../dist/vendor/bootstrap.min.css',import.meta.url));
+await cp(new URL('../node_modules/bootstrap/LICENSE', import.meta.url),new URL('../dist/vendor/bootstrap-LICENSE.txt',import.meta.url));
+await cp(new URL('../node_modules/bootstrap-icons/font/bootstrap-icons.min.css', import.meta.url),new URL('../dist/vendor/icons/bootstrap-icons.min.css',import.meta.url));
+await cp(new URL('../node_modules/bootstrap-icons/font/fonts/', import.meta.url),new URL('../dist/vendor/icons/fonts/',import.meta.url),{recursive:true});
+await cp(new URL('../node_modules/bootstrap-icons/LICENSE', import.meta.url),new URL('../dist/vendor/icons-LICENSE.txt',import.meta.url));
 console.log(`Build OK: ${root}dist (${data.provinces.length}개 시·도 / ${data.provinces.reduce((n,p)=>n+p.destinations.length,0)}개 최종 후보)`);

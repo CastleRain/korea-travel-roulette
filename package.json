@@ -3,12 +3,18 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "node scripts/serve.mjs",
     "build": "node scripts/build.mjs",
     "test": "node --test tests/*.test.mjs",
     "test:firestore": "firebase emulators:exec --config firebase.test.json --only firestore --project demo-travel-roulette \"node --test tests/firestore.integration.mjs\"",
     "check": "npm test && npm run build"
+  },
+  "dependencies": {
+    "bootstrap": "5.3.8",
+    "bootstrap-icons": "1.13.1"
   }
 }

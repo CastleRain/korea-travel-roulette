@@ -25,6 +25,9 @@ function node(tag, className, text) {
   if (text !== undefined) result.textContent=text;
   return result;
 }
+function icon(name) {
+  const element=node('i',`bi bi-${name}`);element.setAttribute('aria-hidden','true');return element;
+}
 function svgNode(tag, attributes) {
   const result=document.createElementNS(ns,tag);
   for (const [name,value] of Object.entries(attributes)) result.setAttribute(name,String(value));
@@ -83,7 +86,7 @@ function updateMap() {
     $('map-badge').textContent=destination.name;
     $('map-caption').textContent=province.singleStage ? province.name : `${province.name} ${destination.name}`;
     $('map-title').textContent=`선택한 여행지: ${$('map-caption').textContent}`;
-    mapView(province.bounds,32);
+    mapView(destination.bounds,26);
   } else if (province) {
     $('map-badge').textContent=province.name;
     $('map-caption').textContent=`${province.name} 안에서 목적지를 고르고 있어요.`;
@@ -115,7 +118,8 @@ function renderEngine() {
   $('step-1').className=`step ${ready||state===STATES.PROVINCE?'current':'done'}`;
   $('step-2').className=`step ${state===STATES.DISTRICT?'current':complete?'done':''}`;
   $('step-2').querySelector('b').textContent=complete&&engine.province.singleStage?'하위 추첨 생략':'시·군·구 뽑기';
-  $('primary-icon').textContent=spinning?'■':'↗';
+  $('primary-icon').textContent='';
+  $('primary-icon').className=spinning?'bi bi-stop-fill':'bi bi-arrow-right';
   const descriptions={
     ready:['준비 완료','여행지 뽑기','첫 번째 목적지를 기다리는 중','시작 버튼을 누르고, 마음이 가는 순간 멈춰보세요.','시작을 누른 뒤 Enter로 멈춰주세요.'],
     province:['시·도 추첨 중','여기서 멈추기','STEP 01 · 시·도 추첨 중','어느 시·도로 떠나볼까요?','Enter 또는 멈추기 버튼으로 시·도를 확정하세요.'],
@@ -199,8 +203,8 @@ function renderCandidates(records) {
   $('candidate-total').textContent=String(records.length).padStart(2,'0');
   const fragment=document.createDocumentFragment();
   for(const record of records.slice(0,candidateLimit)) {
-    const row=node('label','candidate-row');
-    const checkbox=node('input');checkbox.type='checkbox';checkbox.dataset.recordId=record.id;
+    const row=node('label','candidate-row list-group-item list-group-item-action');
+    const checkbox=node('input','form-check-input');checkbox.type='checkbox';checkbox.dataset.recordId=record.id;
     checkbox.checked=selectedCandidates.has(record.id);
     checkbox.setAttribute('aria-label',`${record.fullName} · ${record.travelerName} · ${dateFormat.format(new Date(record.drawnAt))} 기록 선택`);
     const info=node('span','candidate-info');info.append(node('strong','',record.fullName),node('span','',`${record.travelerName} · ${dateFormat.format(new Date(record.drawnAt))} KST`));
@@ -245,13 +249,13 @@ async function refreshHistory(message) {
   if (!records.length) return;
   const fragment=document.createDocumentFragment();
   records.slice(0,20).forEach((r,i)=>{
-    const row=node('article','history-row');
+    const row=node('article','history-row list-group-item');
     row.append(node('span','history-index',String(records.length-i).padStart(2,'0')));
     const info=node('div','history-info');
     info.append(node('h3','',r.fullName));
     info.append(node('p','',`${r.travelerName||'기존 기록'} · ${dateFormat.format(new Date(r.drawnAt))} KST · ${r.singleStage?'단일 단계':'2단계 추첨'}`));
-    row.append(info,node('span',`save-tag ${r.syncState==='synced'?'':'pending'}`,r.syncState==='synced'?'Firebase 저장 완료':'클라우드 저장 대기'));
-    const link=node('a','history-map-link','↗');
+    row.append(info,node('span',`save-tag badge ${r.syncState==='synced'?'':'pending'}`,r.syncState==='synced'?'Firebase 저장 완료':'이 기기에 보관'));
+    const link=node('a','history-map-link');link.append(icon('arrow-up-right'));
     link.href=`https://map.naver.com/p/search/${encodeURIComponent(r.fullName)}`;
     link.target='_blank';link.rel='noopener noreferrer';link.setAttribute('aria-label',`${r.fullName} 지도 검색`);row.append(link);fragment.append(row);
   });
@@ -282,7 +286,7 @@ async function initializeCloud() {
 
 function setupScope() {
   for (const p of catalog.provinces) {
-    const label=node('label');const input=node('input');input.type='checkbox';input.value=p.id;input.checked=true;
+    const label=node('label','scope-option');const input=node('input','form-check-input');input.type='checkbox';input.value=p.id;input.checked=true;
     label.append(input,document.createTextNode(p.name));$('province-options').append(label);
   }
   $('scope-open').addEventListener('click',()=>{

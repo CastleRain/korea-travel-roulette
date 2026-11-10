@@ -14,10 +14,11 @@
 
 ## 실행
 
-Node.js 22 이상. 프런트엔드는 빌드 도구 의존성이 없는 ES modules이며 Firebase SDK는 설정이 있을 때 공식 CDN에서 가져옵니다.
+Node.js 22 이상. 정적 HTML/ES modules에 Bootstrap 5.3.8과 Bootstrap Icons 1.13.1을 적용합니다. 라이브러리 CSS·아이콘 폰트는 빌드에 포함해 같은 출처에서 제공합니다. Firebase SDK는 설정이 있을 때 공식 CDN에서 가져옵니다.
 
 ```powershell
 cd C:\Users\c\Desktop\AI_company\projects\korea-travel-roulette
+npm.cmd ci
 npm.cmd test
 npm.cmd run build
 npm.cmd run dev
@@ -107,8 +108,10 @@ Firestore 에뮬레이터 검사 7개: 실제 문서 쓰기·읽기, 미인증·
 
 개발용 도구·캐시·로컬 검증 기록은 Git에 업로드하지 않습니다.
 
-## 색상과 글꼴
+## UI 라이브러리와 글꼴
 
-`public/theme.css`에서 아이보리 `#F7F5F0`, 차콜 `#252E2A`, 포레스트 그린 `#28574E`, 테라코타 `#AD6340`를 역할에 따라 사용합니다. 본문과 보조 설명은 중립색, 주요 버튼과 확정 결과는 초록, 지도 목적지는 테라코타로 구분합니다. 기존 `style.css`는 기본 배치·동작 스타일을 담당하고 theme은 시각 표현과 반응형 글자 크기를 조정합니다.
+기존 중복 CSS와 `public/theme.css`를 폐기했습니다. 특정 색상을 의무화하는 외부 서비스 설정은 없습니다. 새 `public/style.css`의 의미별 변수(`accent`, `ink`, `surface`, `border`)로 표현을 관리하며 색상·브랜드는 변경할 수 있습니다. 이전 색상 선택은 현재 지침이 아닙니다.
+
+Bootstrap의 그리드·버튼·폼·배지·목록과 Bootstrap Icons를 사용합니다. 지도는 밝은 회색, 추첨 패널은 짙은 회색, 주 행동은 파란색을 사용하는 새 구성이며 이는 이번 구현 선택입니다. 라이브러리 버전과 자산은 package-lock.json에 고정하고 빌드가 `dist/vendor/`에 복사합니다. GitHub Actions에서도 `npm ci` 후 검사·빌드를 수행합니다. 재배포 라이선스를 함께 포함합니다.
 
 Pretendard v1.3.9 Variable WOFF2를 직접 호스팅하여 실제 한글 글꼴이 로드되도록 했습니다. 출처는 [orioncactus/pretendard](https://github.com/orioncactus/pretendard/tree/v1.3.9), SIL Open Font License 1.1이며 `public/fonts/OFL.txt`를 포함합니다. 글꼴 SHA-256: `9599f12fd42fc0bce1cd50b47a0c022e108d7aa64dd0d1bb0ed44f3282d900b4`.
