@@ -38,7 +38,7 @@
         <div class="card map-card">
           <div class="map-heading"><h2>대한민국 지도</h2><span class="map-badge badge" id="map-badge">전국 지도</span></div>
           <div class="map-area" id="map-area">
-            <svg id="korea-map" viewBox="0 0 640 650" role="img" aria-labelledby="map-title"><title id="map-title">대한민국 행정구역 지도 · 데이터를 불러오는 중</title></svg>
+            <svg id="korea-map" viewBox="0 0 640 650" role="group" aria-labelledby="map-title"><title id="map-title">대한민국 행정구역 지도 · 데이터를 불러오는 중</title></svg>
             <div class="map-controls btn-group-vertical" role="group" aria-label="지도 보기 조정">
               <button class="btn btn-light" id="map-reset" title="전국 지도 보기" aria-label="전국 지도 보기"><i class="bi bi-arrows-fullscreen" aria-hidden="true"></i></button>
               <button class="btn btn-light" id="map-zoom-in" title="지도 확대" aria-label="지도 확대"><i class="bi bi-plus-lg" aria-hidden="true"></i></button>
@@ -46,7 +46,7 @@
             </div>
           </div>
           <div class="pawn-legend" id="pawn-legend" aria-label="친구별 마지막 여행지"></div>
-          <div class="map-footer"><button id="invite" class="btn btn-sm btn-light"><i class="bi bi-link-45deg"></i> 지도 초대 링크</button><span id="map-caption" role="status">공유 지도 연결 중</span></div>
+          <div class="map-footer"><button id="map-confirm" class="btn btn-primary btn-sm" hidden></button><button id="invite" class="btn btn-sm btn-light"><i class="bi bi-link-45deg"></i> 지도 초대 링크</button><span id="map-caption" role="status">공유 지도 연결 중</span></div>
         </div>
       </div>
 
@@ -80,7 +80,7 @@
 
   <dialog id="scope-dialog" class="app-dialog" aria-labelledby="scope-title"><div class="dialog-heading"><h2 id="scope-title">어디까지 떠나볼까요?</h2><button class="btn btn-light close-button" data-close="scope-dialog" aria-label="지역 선택 닫기"><i class="bi bi-x-lg" aria-hidden="true"></i></button></div><p class="dialog-description">선택한 시·도 안에서 추첨해요. 세종과 제주도 포함합니다.</p><div class="scope-toolbar btn-group btn-group-sm" role="group" aria-label="전체 지역 선택"><button id="select-all" class="btn btn-outline-secondary">전체 선택</button><button id="select-none" class="btn btn-outline-secondary">전체 해제</button></div><div id="province-options" class="province-options"></div><p id="scope-error" class="error-text" role="alert"></p><button id="apply-scope" class="btn btn-primary primary-button">선택한 지역으로 설정 <i class="bi bi-check2" aria-hidden="true"></i></button></dialog>
 
-  <dialog id="help-dialog" class="app-dialog" aria-labelledby="help-title"><div class="dialog-heading"><h2 id="help-title">이용 안내</h2><button class="btn btn-light close-button" data-close="help-dialog" aria-label="안내 닫기"><i class="bi bi-x-lg" aria-hidden="true"></i></button></div><ol class="help-list"><li><b>친구와 지도 열기</b><p>지도 초대 링크를 친구에게 보내고 같은 링크에서 각자 이름을 고르세요. 링크를 가진 사람이 네 이름 중 하나로 참여할 수 있습니다.</p></li><li><b>후보 뽑기</b><p>5초 뒤 멈추거나 Enter로 먼저 멈출 수 있어요. 선택 범위에 여행지가 3곳보다 적으면 가능한 곳만 보여줘요.</p></li><li><b>한 곳 선택하기</b><p>마음에 드는 후보를 누른 뒤 확정하세요. 지도에는 친구별 가장 최근 선택이, 기록에는 현재 친구의 선택 내역이 표시됩니다.</p></li></ol><p class="help-footnote">지도는 여행지 선정용입니다. 교통편과 이동 가능 여부는 출발 전에 확인해주세요.</p></dialog>
+  <dialog id="help-dialog" class="app-dialog" aria-labelledby="help-title"><div class="dialog-heading"><h2 id="help-title">이용 안내</h2><button class="btn btn-light close-button" data-close="help-dialog" aria-label="안내 닫기"><i class="bi bi-x-lg" aria-hidden="true"></i></button></div><ol class="help-list"><li><b>친구와 지도 열기</b><p>지도 초대 링크를 친구에게 보내고 같은 링크에서 각자 이름을 고르세요. 링크를 가진 사람이 네 이름 중 하나로 참여할 수 있습니다.</p></li><li><b>후보 뽑기</b><p>5초 뒤 멈추거나 Enter로 먼저 멈출 수 있어요. 선택 범위에 여행지가 3곳보다 적으면 가능한 곳만 보여줘요.</p></li><li><b>한 곳 선택하기</b><p>지도 번호 또는 후보 카드를 누른 뒤 최종 확정하세요. 한 방에서 친구마다 한 번 확정할 수 있습니다. 지도에는 친구별 가장 최근 선택이, 기록에는 현재 친구의 선택 내역이 표시됩니다.</p></li></ol><p class="help-footnote">지도는 여행지 선정용입니다. 교통편과 이동 가능 여부는 출발 전에 확인해주세요.</p></dialog>
   <div id="toast" role="status" class="app-toast" hidden></div>
   <noscript>이 앱을 사용하려면 브라우저의 JavaScript를 켜주세요.</noscript>
 </body>

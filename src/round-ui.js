@@ -1,7 +1,7 @@
 import { drawOptions } from './group.js';
 import { makeRecord } from './roulette.js';
 
-export function setupRound({catalog, room, traveler, scope, onBusy, save, preview, notify}) {
+export function setupRound({catalog, room, traveler, scope, finalRecord, onBusy, save, preview, notify}) {
   const el = id => document.getElementById(id);
   let phase = 'ready', options = [], selected = -1, timer, deadline, id;
   const key = () => 'travel-draft:' + room + ':' + traveler();
@@ -14,14 +14,15 @@ export function setupRound({catalog, room, traveler, scope, onBusy, save, previe
   function render() {
     const spinning = phase === 'spin', choosing = phase === 'choose';
     const busy = spinning || phase === 'saving';
-    onBusy(busy);
+    onBusy(busy, phase === 'done');
     el('roulette').classList.toggle('drawing', spinning);
     el('draw-status').textContent = {ready:'준비 완료', spin:'추첨 중', choose:'후보 도착', saving:'저장 중', done:'선택 완료'}[phase];
-    el('announcement').textContent = {ready:'후보를 뽑으면 이곳에 펼쳐져요.',spin:'지도에서 여행지를 찾고 있어요.',choose:'마음에 드는 한 곳을 골라주세요.',saving:'선택한 여행지를 기록하고 있어요.',done:'선택한 여행지를 기록했어요.'}[phase];
+    el('announcement').textContent = {ready:'후보를 뽑으면 이곳에 펼쳐져요.',spin:'지도에서 여행지를 찾고 있어요.',choose:'지도 번호나 후보 카드를 눌러 한 곳을 골라주세요.',saving:'선택한 여행지를 기록하고 있어요.',done:'이번 여행의 목적지를 확정했어요.'}[phase];
     el('auto-stop').hidden = !spinning;
-    el('primary-label').textContent = {ready:'여행 후보 뽑기',spin:'지금 멈추기',choose:'이 여행지로 확정',saving:'기록하는 중…',done:'다음 후보 뽑기'}[phase];
-    el('primary').disabled = !traveler() || (choosing && selected < 0) || phase === 'saving';
+    el('primary-label').textContent = {ready:'여행 후보 뽑기',spin:'지금 멈추기',choose:'이 여행지로 확정',saving:'기록하는 중…',done:'최종 선택 완료'}[phase];
+    el('primary').disabled = phase === 'done' || !traveler() || (choosing && selected < 0) || phase === 'saving';
     cards();
+    preview(phase === 'done' ? [] : options, choosing, selected);
   }
   function cards() {
     const rows = options.length ? options : Array(3).fill(null);
@@ -46,14 +47,25 @@ export function setupRound({catalog, room, traveler, scope, onBusy, save, previe
         check.className = 'bi bi-check-circle-fill';
         button.append(check);
       }
-      button.onclick = () => {
-        selected = i;
-        render();
-        el('options').children[i].focus();
-        preview([option]);
-      };
+      button.onclick = () => { select(i); el('options').children[i].focus(); };
       return button;
     }));
+  }
+  function select(i) {
+    if (phase !== 'choose' || !options[i]) return;
+    selected=i;
+    render();
+  }
+  function finish(record) {
+    if (!record || phase === 'done') return;
+    clearTimeout(timer);
+    persist(null);
+    const province=catalog.provinces.find(p=>p.id===record.provinceId);
+    const destination=province?.destinations.find(d=>d.id===record.destinationId);
+    options=[{province:province || {name:record.provinceName},destination:destination || {name:record.destinationName}}];
+    selected=0;
+    phase='done';
+    render();
   }
   function stop() {
     clearTimeout(timer);
@@ -61,11 +73,10 @@ export function setupRound({catalog, room, traveler, scope, onBusy, save, previe
     id = crypto.randomUUID();
     persist({id, pairs:options.map(o => [o.province.id,o.destination.id])});
     render();
-    preview(options);
     el('options').children[0].focus();
   }
   async function act() {
-    if (!traveler() || phase === 'saving') return;
+    if (!traveler() || phase === 'saving' || phase === 'done') return;
     if (phase === 'spin') return stop();
     if (phase === 'choose') {
       if (selected < 0) return;
@@ -74,11 +85,10 @@ export function setupRound({catalog, room, traveler, scope, onBusy, save, previe
       phase = 'saving';
       render();
       try {
-        await save(record);
-        persist(null);
-        phase = 'done';
-        preview([]);
+        const winner=await save(record);
+        if(traveler()===record.travelerName) finish(winner);
       } catch {
+        if (phase === 'done') return;
         phase = 'choose';
         notify('기록하지 못했습니다. 다시 확정해주세요.');
       }
@@ -104,6 +114,7 @@ export function setupRound({catalog, room, traveler, scope, onBusy, save, previe
   function reset(restore = false) {
     clearTimeout(timer);
     phase = 'ready'; selected = -1; options = [];
+    if (finalRecord()) {finish(finalRecord());return;}
     if (restore) {
       try {
         const draft = JSON.parse(sessionStorage.getItem(key()));
@@ -118,8 +129,8 @@ export function setupRound({catalog, room, traveler, scope, onBusy, save, previe
         }
       } catch { options = []; }
     } else persist(null);
-    render(); preview(options);
+    render();
   }
   el('primary').onclick = act;
-  return {act,reset};
+  return {act,reset,select,finish};
 }

@@ -56,3 +56,12 @@ test('two anonymous devices share a room selection, with immutable scoped writes
   assert.equal((await fetch(base+'/'+path)).status,403);
   assert.equal((await write({uid:'bob',path,data})).status,403);
 });
+
+test('only one final selection can win for a friend, including concurrent requests', async()=>{
+  const room='b'.repeat(32), name='장성우', prefix=`tripRooms/${room}/travelers/${name}/draws/`;
+  const draw=()=>({...payload(crypto.randomUUID()),roomId:room,travelerName:name});
+  const responses=await Promise.all(['alice','bob'].map(uid=>write({uid,path:prefix+'final',data:draw()})));
+  assert.deepEqual(responses.map(r=>r.status).sort(),[200,403]);
+  const another=draw();
+  assert.equal((await write({path:prefix+another.id,data:another})).status,403);
+});

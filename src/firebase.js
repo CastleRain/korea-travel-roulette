@@ -24,12 +24,25 @@ export async function connectFirebase(config) {
       if ((await timeout(firestoreSdk.getDocFromServer(ref))).exists()) return;
       await timeout(firestoreSdk.setDoc(ref,{...record,savedAt:firestoreSdk.serverTimestamp()}));
     },
+    async finalize(record) {
+      const draws = firestoreSdk.collection(db,'tripRooms',record.roomId,'travelers',record.travelerName,'draws');
+      const latest = firestoreSdk.query(draws,firestoreSdk.orderBy('drawnAt','desc'),firestoreSdk.limit(1));
+      const existing = await timeout(firestoreSdk.getDocsFromServer(latest));
+      if (!existing.empty) return existing.docs[0].data();
+      const ref = firestoreSdk.doc(draws,'final');
+      return timeout(firestoreSdk.runTransaction(db,async transaction=>{
+        const snap=await transaction.get(ref);
+        if(snap.exists()) return snap.data();
+        transaction.set(ref,{...record,savedAt:firestoreSdk.serverTimestamp()});
+        return record;
+      }));
+    },
     watch(room, names, receive, fail) {
       const stops = names.map(name => {
         const records = firestoreSdk.collection(db,'tripRooms',room,'travelers',name,'draws');
         const query = firestoreSdk.query(records,firestoreSdk.orderBy('drawnAt','desc'),firestoreSdk.limit(100));
-        return firestoreSdk.onSnapshot(query, snapshot => {
-          receive(name,snapshot.docs.map(doc=>({...doc.data(),syncState:'synced'})));
+        return firestoreSdk.onSnapshot(query, {includeMetadataChanges:true}, snapshot => {
+          receive(name,snapshot.docs.filter(doc=>!doc.metadata.hasPendingWrites).map(doc=>({...doc.data(),syncState:'synced'})));
         },fail);
       });
       return () => stops.forEach(stop => stop());

@@ -361,3 +361,14 @@ kbd { background: transparent; color: #d7e1ef; border: 1px solid #526079; font-f
  @keyframes slot-enter {from{transform:translateY(-8px);opacity:.4}}
  @keyframes card-arrive {from{transform:perspective(400px) rotateX(-20deg) translateY(8px);opacity:.45}}
 }
+
+.jeju-frame{fill:#f6f8fa;stroke:#9daab5;stroke-dasharray:3 3}
+#province-labels,#friend-pins{pointer-events:none}
+.map-option{cursor:pointer;fill:white}
+.map-option line{stroke:#253d4b;stroke-width:2}
+.map-option circle{fill:#364f60;stroke:white;stroke-width:2}
+.map-option text{font:bold 13px sans-serif;pointer-events:none}
+.map-option.picked circle,.map-option:focus circle{fill:#07664b;stroke:#b8efbd;stroke-width:3}
+.route-preview.picked{fill:#55a58d;stroke:#194e40}
+@media(min-width:992px){.workspace .map-card{min-height:660px}}
+@media(max-width:991px){.workspace .map-area{min-height:clamp(405px,110vw,590px)}}

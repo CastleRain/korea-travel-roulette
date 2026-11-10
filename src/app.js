@@ -12,7 +12,22 @@ const room = currentRoom();
 let catalog, round, service, selectedIds = [], name = '', pageNumber = 1;
 let savedRecords = [], sharedRecords = new Map(), firebaseState = 'connecting', unsubscribe;
 let localAvailable = false, listGeneration = 0, toastTimer, enterHeld = false;
-let currentView = [0,0,640,650];
+// Jeju is shown in a labeled inset southeast of the mainland.
+const jejuOffset = [220,-87];
+const homeBounds = [98,4,440,486];
+let currentView, cloud, manualView=false, candidatePoints=[], pawnPoints=[];
+function mapPoint(province, destination) {
+  const [x,y]=destination.labelPoint;
+  return province.id==='50' ? [x+jejuOffset[0],y+jejuOffset[1]] : [x,y];
+}
+function fitMap() {
+  if(manualView)return;
+  const [left,top,right,bottom]=homeBounds;
+  const points=[...candidatePoints,...pawnPoints];
+  const x=Math.min(left,...points.map(p=>p[0]-24)),y=Math.min(top,...points.map(p=>p[1]-33));
+  const r=Math.max(right,...points.map(p=>p[0]+24)),b=Math.max(bottom,...points.map(p=>p[1]+22));
+  currentView=[x,y,r-x,b-y];applyView();
+}
 const colors = ['#973d55','#21637a','#977022','#3c7055'];
 const shortNames = {'서울특별시':'서울','부산광역시':'부산','대구광역시':'대구','인천광역시':'인천','대전광역시':'대전','울산광역시':'울산','세종특별자치시':'세종','경기도':'경기','강원특별자치도':'강원','충청북도':'충북','충청남도':'충남','전북특별자치도':'전북','경상북도':'경북','경상남도':'경남','제주특별자치도':'제주','전남광주통합특별시':'전남광주'};
 const dateFormat = new Intl.DateTimeFormat('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:'Asia/Seoul'});
@@ -55,29 +70,62 @@ function setupMap() {
   const svg=$('korea-map');
   for (const p of catalog.provinces) {
     const path=svgNode('path',{d:p.path,class:'province-path',id:`map-${p.id}`});
+    if(p.id==='50'){
+      svg.append(svgNode('rect',{x:352,y:389,width:76,height:97,rx:7,class:'jeju-frame'}));
+      path.setAttribute('transform',`translate(${jejuOffset.join(' ')})`);
+    }
     const title=svgNode('title',{}); title.textContent=p.name;path.append(title);svg.append(path);
   }
   const districts=svgNode('g',{id:'selected-district'});svg.append(districts);
   const labels=svgNode('g',{id:'province-labels'});
   for (const p of catalog.provinces) {
-    let [x,y]=p.labelPoint;
+    let [x,y]=mapPoint(p,p);
     // Readability offsets only; boundary polygons retain their actual positions.
     const offsets={'서울특별시':[-13,-4],'인천광역시':[-15,7],'세종특별자치시':[-16,-9],'대전광역시':[13,8]};
     if (offsets[p.name]) { x+=offsets[p.name][0];y+=offsets[p.name][1]; }
     const label=svgNode('text',{x,y,'text-anchor':'middle',class:'map-label',id:`label-${p.id}`});
-    label.textContent=shortNames[p.name]||p.shortName;labels.append(label);
+    label.textContent=p.id==='50'?'제주 (별도 표시)':shortNames[p.name]||p.shortName;labels.append(label);
   }
-  svg.append(labels);
+  svg.append(labels);fitMap();
   $('map-title').textContent='대한민국 행정구역 지도 · 아직 선택된 지역 없음';
 }
-function preview(options) {
-  const group = $('selected-district');
-  group.replaceChildren(...options.map(({destination}, i) => svgNode('path',{
-    d:destination.path, class:'route-preview', style:`--slot:${i}`
-  })));
-  $('map-badge').textContent = options.length ? `후보 ${options.length}곳` : '전국 지도';
+function preview(options, interactive=false, selected=-1) {
+  const shapes=$('selected-district'), markers=svgNode('g',{});
+  shapes.replaceChildren();
+  candidatePoints=[];
+  options.forEach(({province,destination},i)=>{
+    const active=i===selected;
+    const path=svgNode('path',{d:destination.path,class:'route-preview'+(active?' picked':'')});
+    if(province.id==='50')path.setAttribute('transform',`translate(${jejuOffset.join(' ')})`);
+    shapes.append(path);
+    if(!interactive)return;
+    path.onclick=()=>round.select(i);
+    path.style.cursor='pointer';
+    const [x,y]=mapPoint(province,destination);
+    let px=x;
+    while(candidatePoints.some(([a,b])=>Math.abs(px-a)<31 && Math.abs(y-b)<30))px+=32;
+    candidatePoints.push([px,y],[x,y]);
+    const button=svgNode('g',{class:'map-option'+(active?' picked':''),role:'button',tabindex:0,
+      'aria-label':`후보 ${i+1} · ${province.name} ${destination.name}`,'aria-pressed':active});
+    const label=svgNode('text',{x:px,y:y+4,'text-anchor':'middle'});label.textContent=i+1;
+    button.append(svgNode('line',{x1:x,y1:y,x2:px,y2:y}),svgNode('circle',{cx:px,cy:y,r:14}),label);
+    button.onclick=()=>round.select(i);
+    button.onkeydown=event=>{
+      if(['Enter',' '].includes(event.key)){event.preventDefault();event.stopPropagation();round.select(i);shapes.querySelectorAll('[role="button"]')[i].focus();}
+    };
+    markers.append(button);
+  });
+  shapes.append(markers);
+  $('map-confirm').hidden=!interactive;
+  $('map-confirm').disabled=selected<0;
+  $('map-confirm').textContent=selected<0?'지도에서 후보 선택':options[selected].destination.name+' 최종 확정';
+  $('map-badge').textContent=options.length?`후보 ${options.length}곳`:'여행 지도';
+  fitMap();
 }
 
+function finalRecord() {
+  return visibleRecords().find(r=>r.roomId===room);
+}
 function visibleRecords() {
   return historyFor(savedRecords, sharedRecords.get(name) || [], name, room);
 }
@@ -87,7 +135,7 @@ function renderPins() {
   if (!layer) {layer=svgNode('g',{id:'friend-pins'});$('korea-map').append(layer);}
   layer.replaceChildren();
   $('pawn-legend').replaceChildren();
-  const placed=[];
+  const placed=[];pawnPoints=[];
   for (const [index,friend] of FRIENDS.entries()) {
     const [record]=historyFor(savedRecords.filter(r=>r.roomId===room), sharedRecords.get(friend)||[], friend, room);
     const province=catalog.provinces.find(p=>p.id===record?.provinceId);
@@ -97,10 +145,10 @@ function renderPins() {
     chip.append(node('b','', '♟'),document.createTextNode(friend+' · '+(destination?.name||'미정')));
     $('pawn-legend').append(chip);
     if (!destination) continue;
-    const [x,y]=destination.labelPoint;
+    const [x,y]=mapPoint(province,destination);
     let px=x;
     while(placed.some(([a,b])=>Math.abs(a-px)<26 && Math.abs(b-y)<32)) px+=28;
-    placed.push([px,y]);
+    placed.push([px,y]);pawnPoints.push([px,y]);
     const group=svgNode('g',{'aria-label':friend+' '+record.fullName});
     const title=svgNode('title',{});title.textContent=friend+' · '+record.fullName;
     group.append(title,svgNode('line',{x1:x,y1:y,x2:px,y2:y-7,stroke:colors[index],'stroke-width':2}));
@@ -108,6 +156,7 @@ function renderPins() {
     pawn.append(svgNode('path',{d:'M-10 0 Q-12 -3 -7 -5 Q-3 -11 -3 -15 L3 -15 Q3 -11 7 -5 Q12 -3 10 0Z'}),svgNode('circle',{cx:0,cy:-19,r:6}));
     group.append(pawn);layer.append(group);
   }
+  fitMap();
   $('map-title').textContent='대한민국 여행 지도. 친구별 여행지는 지도 아래 범례에 표시됩니다.';
 }
 function renderRecords() {
@@ -132,7 +181,7 @@ function renderRecords() {
     row.append(info,link);return row;
   });
   $('history-list').replaceChildren(...(rows.length?rows:[node('p','empty-state','후보 중 한 곳을 확정하면 여기에 남아요.')]));
-  renderPins();
+  renderPins();round?.finish(finalRecord());
 }
 
 function setupProfile() {
@@ -176,13 +225,13 @@ function withTimeout(promise,ms=20000) {
 }
 let connectionTask;
 async function initializeCloud() {
-  if(!firebaseConfig || connectionTask) return;
+  if(!firebaseConfig || connectionTask) return connectionTask;
   firebaseState='connecting';refreshHistory();
   connectionTask=(async()=>{
     try {
       const remote=await withTimeout(connectFirebase(firebaseConfig));
       await withTimeout(service.connect(remote));
-      unsubscribe?.();
+      cloud=remote;unsubscribe?.();
       unsubscribe=remote.watch(room, FRIENDS, (friend,records)=>{
         sharedRecords.set(friend,records);renderRecords();
         if(sharedRecords.size===FRIENDS.length && firebaseState!=='error') $('map-caption').textContent='친구들의 선택을 실시간으로 표시 중';
@@ -247,10 +296,12 @@ function setupControls() {
   window.addEventListener('blur',()=>enterHeld=false);
   $('help-open').addEventListener('click',()=>$('help-dialog').showModal());
   document.querySelectorAll('[data-close]').forEach(button=>button.addEventListener('click',()=>$(button.dataset.close).close()));
-  $('map-reset').addEventListener('click',()=>mapView());
+  $('map-confirm').onclick=()=>round.act();
+  $('map-reset').addEventListener('click',()=>{manualView=true;mapView();});
   $('map-zoom-in').addEventListener('click',()=>zoom(.8));
   $('map-zoom-out').addEventListener('click',()=>zoom(1.25));
   function zoom(factor) {
+    manualView=true;
     const [x,y,w,h]=currentView;
     const width=Math.min(900,Math.max(40,w*factor)),height=width*h/w;
     currentView=[x+(w-width)/2,y+(h-height)/2,width,height];
@@ -279,12 +330,18 @@ async function main() {
     selectedIds=catalog.provinces.map(p=>p.id);
     $('data-version').textContent=`${catalog.version} · ${catalog.provinces.length}개 시·도`;
     setupMap();setupScope();
-    round=setupRound({catalog,room,traveler:()=>name,scope:()=>selectedIds,preview,notify:toast,
-      onBusy(busy) {
-        $('scope-open').disabled=busy;$('profile-open').disabled=busy;
+    round=setupRound({catalog,room,traveler:()=>name,scope:()=>selectedIds,finalRecord,preview,notify:toast,
+      onBusy(busy,done) {
+        $('scope-open').disabled=busy||done;$('profile-open').disabled=busy;
         for(const b of $('traveler-choices').children)b.disabled=busy;
       },
-      save:record=>service.save(record)
+      async save(record) {
+        if(!cloud) await initializeCloud();
+        if(!cloud) throw Error('offline');
+        const winner=await cloud.finalize(record);
+        await service.retain({...winner,syncState:'synced'});await refreshHistory();
+        return winner;
+      }
     });
     setupControls();round.reset(true);renderPins();
   } catch(error) {

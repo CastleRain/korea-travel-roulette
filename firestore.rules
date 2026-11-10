@@ -23,7 +23,9 @@ service cloud.firestore {
       }
       allow get: if participant();
       allow list: if participant() && request.query.limit <= 100;
-      allow create: if participant() && validDraw(drawId) &&
+      allow create: if participant() && validDraw(request.resource.data.id) &&
+        (drawId == 'final' || (drawId == request.resource.data.id &&
+          !exists(/databases/$(database)/documents/tripRooms/$(room)/travelers/$(name)/draws/final))) &&
         request.resource.data.roomId == room && request.resource.data.travelerName == name;
     }
     match /users/{uid}/draws/{drawId} {
