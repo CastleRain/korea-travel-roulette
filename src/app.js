@@ -118,7 +118,7 @@ function preview(options, interactive=false, selected=-1) {
   shapes.append(markers);
   $('map-confirm').hidden=!interactive;
   $('map-confirm').disabled=selected<0;
-  $('map-confirm').textContent=selected<0?'지도에서 후보 선택':options[selected].destination.name+' 최종 확정';
+  $('map-confirm').textContent=!interactive || selected<0?'지도에서 후보 선택':options[selected].destination.name+' 최종 확정';
   $('map-badge').textContent=options.length?`후보 ${options.length}곳`:'여행 지도';
   fitMap();
 }
