@@ -3,6 +3,7 @@ import { LocalRecords, RecordService } from './storage.js';
 import { connectFirebase } from './firebase.js';
 import { firebaseConfig } from '../firebase-config.js';
 import { TravelerProfile } from './profile.js';
+import { recordPage, FRIENDS } from './record-view.js';
 
 const $ = id=>document.getElementById(id);
 const ns = 'http://www.w3.org/2000/svg';
@@ -11,7 +12,8 @@ let firebaseState = 'unconfigured', localAvailable = false, listGeneration = 0, 
 let currentView = [0,0,640,650], enterHeld = false;
 const profile = new TravelerProfile();
 const selectedCandidates = new Set();
-let candidateRecords = [], savedRecordIds = new Set(), candidateLimit = 20, savingSelection = false;
+let candidateRecords = [], savedRecordIds = new Set(), savingSelection = false;
+let savedRecords=[], recordTab='candidates', personFilter='', pageNumber=1, settling=false, settleTimer;
 const shortNames = {'서울특별시':'서울','부산광역시':'부산','대구광역시':'대구','인천광역시':'인천','대전광역시':'대전','울산광역시':'울산','세종특별자치시':'세종','경기도':'경기','강원특별자치도':'강원','충청북도':'충북','충청남도':'충남','전북특별자치도':'전북','경상북도':'경북','경상남도':'경남','제주특별자치도':'제주','전남광주통합특별시':'전남광주'};
 const dateFormat = new Intl.DateTimeFormat('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:'Asia/Seoul'});
 
@@ -135,9 +137,35 @@ function renderEngine() {
   $('keyboard-text').textContent=transition?'키를 떼고 잠시 기다려주세요':complete?'새로운 여행 시작':ready?'시작 / 추첨 멈추기':'지금 보이는 지역 확정';
   updateMap();
   updateSaveResult();
+  if(transition||complete) animateConfirmation();
+  else updateInputLock();
+}
+function updateInputLock() {
+  if(!engine) return;
+  const busy=settling||[STATES.PROVINCE,STATES.DISTRICT,STATES.TRANSITION].includes(engine.state);
+  $('primary').disabled=settling||engine.state===STATES.TRANSITION||!profile.name;
+  $('restart').disabled=settling||engine.state===STATES.READY;
+  $('scope-open').disabled=busy;$('profile-open').disabled=busy;
+  $('reroll-district').disabled=settling;
+  document.querySelectorAll('#traveler-choices button').forEach(b=>b.disabled=busy);
+  updateSaveResult();updateSelection();
+}
+function animateConfirmation() {
+  clearTimeout(settleTimer);settling=true;updateInputLock();
+  const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const targets=[$('destination'),document.querySelector('.province-path.selected'),document.querySelector('.map-pin')].filter(Boolean);
+  for(const target of targets) {
+    target.getAnimations().forEach(a=>a.cancel());
+    if(!reduced) target.animate(target===$('destination')?[
+      {transform:'translateY(-14px) scale(.96)',opacity:.5},
+      {transform:'translateY(3px) scale(1.025)',opacity:1,offset:.65},
+      {transform:'translateY(0) scale(1)',opacity:1}
+    ]:[{opacity:.35},{opacity:1}],{duration:700,easing:'cubic-bezier(.2,.7,.2,1)'});
+  }
+  settleTimer=setTimeout(()=>{settling=false;updateInputLock();},reduced?0:700);
 }
 function primaryAction() {
-  if (!engine) return;
+  if (!engine||settling) return;
   if (!profile.name) { openProfile(); return; }
   if (engine.state===STATES.READY||engine.state===STATES.COMPLETE) { lastResult=null;engine.start(selectedIds); }
   else engine.stop();
@@ -145,7 +173,7 @@ function primaryAction() {
 
 async function completed({province,destination}) {
   const record={...makeRecord(province,destination,catalog.version),travelerName:profile.name};
-  lastResult=record;
+  lastResult=record;recordTab='candidates';pageNumber=1;selectedCandidates.clear();
   $('search-map').href=`https://map.naver.com/p/search/${encodeURIComponent(record.fullName)}`;
   $('reroll-district').hidden=province.singleStage;
   updateSaveResult();
@@ -164,9 +192,16 @@ function renderProfile() {
   $('profile-name').textContent=profile.name?`${profile.name} 님`:'이름 입력';
   $('profile-open').title=profile.name?`${profile.name} · 이름 변경`:'이름 입력';
   $('profile-open').setAttribute('aria-label',profile.name?'이름 변경':'이름 입력');
-  if(engine) $('primary').disabled=!profile.name||engine.state===STATES.TRANSITION;
+  $('active-traveler').textContent=profile.name?`${profile.name} 님의 차례`: '이름을 선택해주세요';
+  document.querySelectorAll('#traveler-choices button').forEach(b=>{const chosen=b.dataset.name===profile.name;b.classList.toggle('active',chosen);b.setAttribute('aria-pressed',String(chosen));});
+  updateInputLock();
 }
 function setupProfile() {
+  for(const name of FRIENDS) {
+    const button=node('button','btn btn-outline-secondary',name);button.type='button';button.dataset.name=name;button.setAttribute('aria-pressed','false');
+    button.addEventListener('click',()=>{profile.set(name);renderProfile();});$('traveler-choices').append(button);
+    const choice=node('button','btn btn-outline-secondary',name);choice.type='button';choice.addEventListener('click',()=>{profile.set(name);$('profile-dialog').close();renderProfile();});$('profile-choices').append(choice);
+  }
   profile.load(); renderProfile();
   $('profile-open').addEventListener('click',openProfile);
   $('profile-dialog').addEventListener('cancel',event=>{if(!profile.name) event.preventDefault();});
@@ -183,95 +218,70 @@ function setupProfile() {
 function updateSaveResult() {
   const saved = lastResult && savedRecordIds.has(lastResult.id);
   $('save-result').textContent=saved?'기록에 남겼어요':savingSelection?'기록하는 중…':'이 결과 기록하기';
-  $('save-result').disabled=!lastResult||saved||savingSelection||!candidateRecords.some(r=>r.id===lastResult.id);
+  $('save-result').disabled=settling||!lastResult||saved||savingSelection||!candidateRecords.some(r=>r.id===lastResult.id);
   $('result-traveler').textContent=lastResult?`${lastResult.travelerName} 님의 추첨 결과`:'';
 }
+function currentRecords() { return recordPage(recordTab==='candidates'?candidateRecords:savedRecords,personFilter,pageNumber); }
 function updateSelection() {
-  const visible=candidateRecords.slice(0,candidateLimit);
+  const visible=currentRecords().items;
   const checked=visible.filter(r=>selectedCandidates.has(r.id)).length;
   $('select-candidates').checked=visible.length>0&&checked===visible.length;
   $('select-candidates').indeterminate=checked>0&&checked<visible.length;
+  $('select-candidates').disabled=!visible.length||savingSelection;
   $('selection-count').textContent=`${selectedCandidates.size}개 선택`;
-  $('save-selected').disabled=!selectedCandidates.size||savingSelection;
+  $('save-selected').disabled=settling||!selectedCandidates.size||savingSelection;
   $('save-selected').textContent=savingSelection?'기록하는 중…':`선택한 결과 기록하기${selectedCandidates.size?` (${selectedCandidates.size})`:''}`;
 }
-function renderCandidates(records) {
-  candidateRecords=records;
-  const ids=new Set(records.map(r=>r.id));
-  for(const id of selectedCandidates) if(!ids.has(id)) selectedCandidates.delete(id);
-  $('candidates').hidden=!records.length;
-  $('candidate-total').textContent=String(records.length).padStart(2,'0');
+function renderRecords() {
+  const page=currentRecords();pageNumber=page.page;
+  $('candidate-total').textContent=candidateRecords.length;$('log-total').textContent=savedRecords.length;
+  $('candidates').hidden=recordTab!=='candidates';$('history').hidden=recordTab!=='history';
+  for(const tab of ['candidates','history']) {const b=$(`tab-${tab}`),active=recordTab===tab;b.classList.toggle('active',active);b.setAttribute('aria-selected',String(active));b.tabIndex=active?0:-1;}
+  $('records-page').textContent=`${page.page} / ${page.pages} · ${page.total}개`;
+  $('records-prev').disabled=page.page===1;$('records-next').disabled=page.page===page.pages;
   const fragment=document.createDocumentFragment();
-  for(const record of records.slice(0,candidateLimit)) {
-    const row=node('label','candidate-row list-group-item list-group-item-action');
-    const checkbox=node('input','form-check-input');checkbox.type='checkbox';checkbox.dataset.recordId=record.id;
-    checkbox.checked=selectedCandidates.has(record.id);
-    checkbox.setAttribute('aria-label',`${record.fullName} · ${record.travelerName} · ${dateFormat.format(new Date(record.drawnAt))} 기록 선택`);
-    const info=node('span','candidate-info');info.append(node('strong','',record.fullName),node('span','',`${record.travelerName} · ${dateFormat.format(new Date(record.drawnAt))} KST`));
-    const marker=node('span','candidate-marker');marker.append(icon('geo-alt'));
-    row.append(checkbox,marker,info,icon('plus-lg'));fragment.append(row);
+  for(const r of page.items) {
+    const candidate=recordTab==='candidates';
+    const row=node(candidate?'label':'article',`${candidate?'candidate-row list-group-item-action':'history-row'} list-group-item`);
+    if(candidate) {const checkbox=node('input','form-check-input');checkbox.type='checkbox';checkbox.dataset.recordId=r.id;checkbox.checked=selectedCandidates.has(r.id);checkbox.setAttribute('aria-label',`${r.travelerName} · ${r.fullName} 기록 선택`);row.append(checkbox);}
+    const info=node('div','history-info');info.append(node('h3','',r.fullName));
+    const meta=node('div','record-metadata');meta.append(node('span','record-person',r.travelerName||'기존 기록'));
+    const time=node('time','',dateFormat.format(new Date(r.drawnAt)));time.dateTime=r.drawnAt;meta.append(time);info.append(meta);
+    if(!candidate) {const status=node('span',`save-tag badge ${r.syncState==='synced'?'':'pending'}`);status.append(icon(r.syncState==='synced'?'cloud-check':'clock'),document.createTextNode(r.syncState==='synced'?'저장 완료':'저장 대기'));meta.append(status);}
+    row.append(info);
+    if(!candidate) {const link=node('a','history-map-link btn btn-light');link.append(icon('arrow-up-right'));link.href=`https://map.naver.com/p/search/${encodeURIComponent(r.fullName)}`;link.target='_blank';link.rel='noopener noreferrer';link.setAttribute('aria-label',`${r.fullName} 지도 검색`);row.append(link);}
+    fragment.append(row);
   }
-  $('candidate-list').replaceChildren(fragment);
-  $('more-candidates').hidden=records.length<=candidateLimit;
+  if(!page.total) {const empty=node('div','empty-state');empty.append(icon(recordTab==='candidates'?'shuffle':'bookmark'),node('h3','',recordTab==='candidates'?'뽑아본 결과가 없어요':'아직 저장한 기록이 없어요'),node('p','',personFilter?'다른 이름이나 모든 사람을 선택해보세요.':'여행지를 뽑고 원하는 결과를 기록하세요.'));fragment.append(empty);}
+  $(recordTab==='candidates'?'candidate-list':'history-list').replaceChildren(fragment);
   updateSelection();updateSaveResult();
 }
 async function saveResults(ids) {
-  if(savingSelection) return;
+  if(savingSelection||settling) return;
   savingSelection=true;updateSelection();updateSaveResult();
   try {
     const count=await service.saveSelected(ids);
+    if(count) {recordTab='history';pageNumber=1;selectedCandidates.clear();}
     toast(count?`${count}개 목적지를 내 여행 기록에 남겼습니다.`:'이미 기록했거나 선택된 결과가 없습니다.');
-  } catch { toast('기록을 남기지 못했습니다. 임시 목록에서 다시 선택해주세요.'); }
+  } catch { toast('기록을 남기지 못했습니다. 다시 선택해주세요.'); }
   finally {savingSelection=false;await refreshHistory();}
 }
-
 async function refreshHistory(message) {
-  if (message) toast(message);
+  if(message) toast(message);
   const generation=++listGeneration;
   const [records,candidates]=await Promise.all([service.list(),service.candidates()]);
-  if (generation!==listGeneration) return;
-  savedRecordIds=new Set(records.map(r=>r.id));
-  renderCandidates(candidates);
-  $('history-count').textContent=records.length;
-  $('log-total').textContent=String(records.length).padStart(2,'0');
-  $('export-records').disabled=!records.length&&!candidates.length;
+  if(generation!==listGeneration) return;
+  savedRecords=records;candidateRecords=candidates;savedRecordIds=new Set(records.map(r=>r.id));
+  const ids=new Set(candidates.map(r=>r.id));for(const id of selectedCandidates) if(!ids.has(id)) selectedCandidates.delete(id);
+  $('history-count').textContent=records.length;$('export-records').disabled=!records.length&&!candidates.length;
   const pending=records.filter(r=>r.syncState!=='synced').length;
-  $('summary-total').textContent=records.length;
-  $('summary-places').textContent=new Set(records.map(r=>r.destinationId)).size;
-  $('summary-synced').textContent=records.length-pending;
-  const descriptions={
-    unconfigured:`클라우드 미연결 · ${pending?`${pending}개 기록을 이 브라우저에 임시 보관 중입니다.`:'기록은 이 브라우저에 임시 보관합니다.'}`,
-    connecting:'클라우드 연결 중 · 기록은 먼저 이 브라우저에 임시 보관합니다.',
-    connected:pending?`클라우드 연결됨 · ${pending}개 저장 대기 중`:'클라우드 연결됨 · 선택해 기록한 목적지만 저장합니다.',
-    error:'클라우드 연결 실패 · 기록은 이 브라우저에 임시 보관 중입니다. 다시 저장을 눌러주세요.'
-  };
+  const descriptions={unconfigured:'이 기기에 보관 중',connecting:'클라우드 연결 중',connected:pending?`${pending}개 클라우드 저장 대기`:'클라우드 연결됨',error:'연결 실패 · 이 기기에 보관 중'};
   $('storage-status').textContent=descriptions[firebaseState];
-  $('storage-explanation').textContent=firebaseState==='connected'?'이 브라우저의 익명 계정으로 보관합니다. 같은 이름을 입력해도 다른 기기와 기록이 공유되지는 않아요.':'선택해 기록한 목적지만 이곳에 모입니다. 클라우드 연결 전에는 이 기기에 보관합니다.';
-  if (!localAvailable || service.localFailed) $('storage-status').textContent+=' 브라우저 임시 저장을 사용할 수 없어 JSON 백업이 필요합니다.';
+  if(!localAvailable||service.localFailed) $('storage-status').textContent+=' · JSON 백업 필요';
+  $('storage-explanation').textContent='이름은 표시용입니다. 다른 기기의 기록과 공유되지 않습니다.';
   $('storage-dot').className=`status-dot ${firebaseState==='connected'&&!pending?'':firebaseState==='error'?'error':'warning'}`;
-  $('sync-records').hidden=!firebaseConfig || (!pending && firebaseState==='connected');
-  $('sync-records').disabled=firebaseState==='connecting';
-  if (!records.length) return;
-  const fragment=document.createDocumentFragment();
-  records.slice(0,20).forEach((r,i)=>{
-    const row=node('article','history-row list-group-item');
-    const marker=node('span','history-marker');marker.append(icon('geo-alt-fill'));row.append(marker);
-    const info=node('div','history-info');
-    const region=node('span','record-region',r.provinceName);
-    info.append(region,node('h3','',r.singleStage?r.provinceName:r.destinationName));
-    const metadata=node('div','record-metadata');
-    const traveler=node('span');traveler.append(icon('person'),document.createTextNode(r.travelerName||'기존 기록'));
-    const date=node('time','',dateFormat.format(new Date(r.drawnAt))+' KST');date.dateTime=r.drawnAt;
-    metadata.append(traveler,date);info.append(metadata);
-    const saved=r.syncState==='synced';
-    const status=node('span',`save-tag badge ${saved?'':'pending'}`);status.append(icon(saved?'cloud-check':'clock'),document.createTextNode(saved?'Firebase 저장 완료':'저장 대기'));
-    info.append(status);row.append(info);
-    const link=node('a','history-map-link btn btn-light');link.append(icon('arrow-up-right'));
-    link.href=`https://map.naver.com/p/search/${encodeURIComponent(r.fullName)}`;
-    link.target='_blank';link.rel='noopener noreferrer';link.setAttribute('aria-label',`${r.fullName} 지도 검색`);row.append(link);fragment.append(row);
-  });
-  if(records.length>20) fragment.append(node('p','more-history',`최근 20개를 표시합니다. 전체 ${records.length}개 기록은 JSON으로 내려받을 수 있어요.`));
-  $('history-list').replaceChildren(fragment);
+  $('sync-records').hidden=!firebaseConfig||(!pending&&firebaseState==='connected');$('sync-records').disabled=firebaseState==='connecting';
+  renderRecords();
 }
 
 function withTimeout(promise,ms=20000) {
@@ -326,12 +336,21 @@ function setupControls() {
     updateSelection();
   });
   $('select-candidates').addEventListener('change',event=>{
-    for(const record of candidateRecords.slice(0,candidateLimit)) {
+    for(const record of currentRecords().items) {
       if(event.target.checked) selectedCandidates.add(record.id);else selectedCandidates.delete(record.id);
     }
-    renderCandidates(candidateRecords);
+    renderRecords();
   });
-  $('more-candidates').addEventListener('click',()=>{candidateLimit+=20;renderCandidates(candidateRecords);});
+  function changeView(tab) {recordTab=tab;pageNumber=1;selectedCandidates.clear();renderRecords();}
+  for(const tab of ['candidates','history']) {
+    const button=$(`tab-${tab}`);button.addEventListener('click',()=>changeView(tab));
+    button.addEventListener('keydown',event=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(event.key)){event.preventDefault();const next=event.key==='Home'?'candidates':event.key==='End'?'history':tab==='history'?'candidates':'history';changeView(next);$(`tab-${next}`).focus();}});
+  }
+  $('record-person').addEventListener('change',event=>{personFilter=event.target.value;pageNumber=1;selectedCandidates.clear();renderRecords();});
+  for(const [id,delta] of [['records-prev',-1],['records-next',1]]) $(id).addEventListener('click',()=>{pageNumber+=delta;selectedCandidates.clear();renderRecords();});
+  function mobileView(records) {document.body.classList.toggle('show-records',records);for(const [id,active] of [['view-records',records],['view-draw',!records]]) {$(id).classList.toggle('active',active);$(id).setAttribute('aria-pressed',String(active));}}
+  $('view-draw').addEventListener('click',()=>mobileView(false));$('view-records').addEventListener('click',()=>mobileView(true));
+  document.querySelectorAll('a[href="#records-panel"]').forEach(link=>link.addEventListener('click',()=>mobileView(true)));
   document.addEventListener('keydown',event=>{
     if(event.key!=='Enter'||event.isComposing||event.ctrlKey||event.altKey||event.metaKey) return;
     if(document.querySelector('dialog[open]')) return;

@@ -229,7 +229,7 @@ kbd { background: transparent; color: #d7e1ef; border: 1px solid #526079; font-f
   .brand { grid-column: 1; grid-row: 1; font-size: 23px; }
   .header-nav { display: contents; }
   .header-nav .nav-link.active { display: none; }
-  .header-nav a[href="#history"] { grid-column: 1; grid-row: 2; padding: 0; border: 0; font-size: 12px; justify-self: start; }
+  .header-nav a[href="#records-panel"] { grid-column: 1; grid-row: 2; padding: 0; border: 0; font-size: 12px; justify-self: start; }
   #profile-open { grid-column: 2; grid-row: 1; max-width: 160px; font-size: 12px; padding: 7px 9px; }
   #help-open { grid-column: 2; grid-row: 2; justify-self: end; padding: 0; font-size: 12px; }
   .app-main { padding-top: 27px; padding-bottom: 40px; }
@@ -269,3 +269,59 @@ kbd { background: transparent; color: #d7e1ef; border: 1px solid #526079; font-f
   html { scroll-behavior: auto; }
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+
+/* Shared travel desk: bounded records, alongside the draw. */
+.app-main { max-width: 1600px; padding-top: 22px; padding-bottom: 20px; }
+.intro { margin-bottom: 18px; }.intro h1 {font-size:28px}.section-label {display:none}
+.travelers-bar { display:flex;align-items:center;gap:18px;margin-bottom:20px;flex-wrap:wrap; }
+.travelers-bar > span {font-size:13px;color:var(--muted)}
+.travelers-bar .btn {font-size:13px;padding:9px 16px;background:#fff}
+.travelers-bar .btn.active {background:var(--ink);border-color:var(--ink);color:#fff}
+.travelers-bar p {margin:0 0 0 auto;font-size:12px;color:var(--muted)}
+.profile-choices {display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px}
+.mobile-views {display:none}
+.workspace.row {display:grid;grid-template-columns:minmax(0,40fr) minmax(0,28fr) minmax(0,32fr);gap:18px;margin:0;align-items:stretch}
+.workspace.row > * {padding:0;width:auto;margin:0;min-width:0}
+.workspace .map-card,.workspace .draw-card,.workspace .records-panel {min-height:570px;height:calc(100dvh - 252px);max-height:820px}
+.map-heading {padding:20px 18px 0}.map-area {min-height:260px}.map-footer{padding:14px;font-size:10px;flex-wrap:wrap}
+.workspace .draw-card {padding:22px 20px}.ticket {min-height:175px;flex:1}.destination,.ticket.complete .destination{font-size:36px}.ticket.is-spinning .destination{font-size:28px}
+.steps {margin-top:23px}.keyboard-hint{margin-bottom:16px}.announcement{min-height:38px;margin-bottom:10px}.result-links{gap:0 10px}
+.workspace .records-panel {padding:20px;display:flex;flex-direction:column;overflow:hidden;border-radius:14px;border-color:var(--border)}
+.records-panel .section-heading h2{font-size:18px}.records-panel .section-heading{flex-wrap:nowrap}
+.record-tabs {padding:4px;background:#f2f4f7;border-radius:8px;display:flex;flex-wrap:nowrap;margin:16px 0 12px;gap:4px}
+.record-tabs .nav-link {flex:1;color:#667085;font-size:12px;padding:9px 4px;white-space:nowrap;border-radius:6px}
+.record-tabs .nav-link.active {background:#fff;color:var(--ink);box-shadow:0 1px 4px #10182812}
+.record-tabs .badge {background:#e9edf3;color:#596579;font-weight:500;margin-left:3px}
+#record-person {margin-bottom:12px;min-height:36px}
+.records-panel [role="tabpanel"] {flex:1;min-height:0;display:flex;flex-direction:column}
+.records-panel .candidate-toolbar{margin:0 0 10px;font-size:11px;min-height:20px}
+.records-panel .candidate-list,.records-panel .history-list {gap:0;flex:1;min-height:0;overflow:auto;border-radius:0}
+.records-panel .history-row.list-group-item,.records-panel .candidate-row {border:0;border-bottom:1px solid var(--border);border-radius:0;padding:12px 0;gap:10px;align-items:center;flex-shrink:0}
+.records-panel .history-info h3 {font-size:13px;font-weight:600;line-height:1.5}
+.records-panel .record-metadata{gap:2px 7px;font-size:10px;margin:4px 0;line-height:1.5}
+.record-person {font-weight:600;color:#475467}
+.records-panel .save-tag{font-size:9px;padding:3px 5px}
+.records-panel .history-map-link{padding:5px 7px;font-size:12px}
+.records-panel .empty-state {margin:auto 0;background:transparent;padding:24px 4px}.records-panel .empty-state p{font-size:11px}
+#save-selected{margin-top:10px;min-height:36px;font-size:12px}
+.record-pagination {display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--border);padding-top:12px;margin-top:12px}
+.record-pagination span{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}.record-pagination .btn{width:34px;height:32px}
+.records-panel .storage-notice{margin:12px 0 0}.records-panel .storage-explanation{font-size:10px;line-height:1.6;margin-top:7px}
+.how-it-works {display:none}.site-footer{padding:12px 0}.site-footer .brand{display:none}.footer-inner{justify-content:center}.site-footer p{font-size:9px;text-align:center}.site-footer p:nth-child(n+2){display:none}
+@media(min-width:992px) and (max-height:850px){.workspace .map-card,.workspace .draw-card,.workspace .records-panel{min-height:550px;height:calc(100dvh - 225px)}.header-inner{min-height:62px}.app-main{padding-top:16px}.intro-description{font-size:13px}.travelers-bar{margin-bottom:14px}.ticket{min-height:130px}.workspace .draw-card{padding:18px}.steps{margin:16px 0 5px}.destination,.ticket.complete .destination{font-size:32px}.draw-options{padding-top:12px}.record-tabs{margin-top:12px}}
+@media(max-width:1100px) and (min-width:992px){.workspace.row{grid-template-columns:minmax(0,34fr) minmax(0,31fr) minmax(0,35fr);gap:12px}.workspace .records-panel{padding:16px}.travelers-bar .btn{padding-inline:12px}}
+@media(max-width:991px){
+  .workspace.row {display:flex;flex-direction:column;gap:18px}
+  .workspace .map-card,.workspace .draw-card {height:auto;max-height:none;min-height:0}
+  .workspace .draw-column{order:1}.workspace .map-column{order:2}.workspace .map-card{min-height:400px}.map-area{min-height:310px}
+  .workspace .records-panel {height:720px;max-height:none;min-height:0;display:none}
+  .mobile-views{display:flex;margin-bottom:18px}.mobile-views .btn{font-size:13px;padding:10px}
+  .show-records .workspace .records-panel{display:flex}.show-records .draw-column,.show-records .map-column{display:none}
+  .ticket {min-height:170px}.travelers-bar{gap:10px}.travelers-bar>span{width:100%}.travelers-bar p{margin-left:0}
+}
+@media(max-width:575px){.app-main{padding-top:20px}.intro h1{font-size:27px}.intro-description{font-size:12px}.travelers-bar .btn{font-size:12px;padding:9px 12px}.travelers-bar p{font-size:11px}.workspace .records-panel{padding:18px}.workspace .draw-card{padding:22px}.record-tabs .nav-link{font-size:13px}.records-panel .history-info h3{font-size:14px}.records-panel .record-metadata{font-size:11px}}
+
+@media(min-width:992px){.records-panel .history-row.list-group-item{padding:7px 0}.records-panel .record-metadata .save-tag{margin-left:auto}.records-panel .record-metadata{align-items:center;margin:2px 0}.records-panel .record-metadata time{font-size:9px}}
+
+.mobile-views .btn {background:#fff;color:var(--muted);border-color:var(--border)}
+.mobile-views .btn.active {background:var(--ink);border-color:var(--ink);color:#fff}

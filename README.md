@@ -115,3 +115,6 @@ Firestore 에뮬레이터 검사 7개: 실제 문서 쓰기·읽기, 미인증·
 Bootstrap의 그리드·버튼·폼·배지·목록과 Bootstrap Icons를 사용합니다. 지도는 밝은 회색, 추첨 패널은 짙은 회색, 주 행동은 파란색을 사용하는 새 구성이며 이는 이번 구현 선택입니다. 라이브러리 버전과 자산은 package-lock.json에 고정하고 빌드가 `dist/vendor/`에 복사합니다. GitHub Actions에서도 `npm ci` 후 검사·빌드를 수행합니다. 재배포 라이선스를 함께 포함합니다.
 
 Pretendard v1.3.9 Variable WOFF2를 직접 호스팅하여 실제 한글 글꼴이 로드되도록 했습니다. 출처는 [orioncactus/pretendard](https://github.com/orioncactus/pretendard/tree/v1.3.9), SIL Open Font License 1.1이며 `public/fonts/OFL.txt`를 포함합니다. 글꼴 SHA-256: `9599f12fd42fc0bce1cd50b47a0c022e108d7aa64dd0d1bb0ed44f3282d900b4`.
+
+
+2026-11-11: 네 명 이름 선택·정지 확정 연출·오른쪽 기록 패널·이름 필터·6개 페이지·모바일 화면 전환을 적용했습니다. [구현과 검증](docs/DESK_UI.md).
