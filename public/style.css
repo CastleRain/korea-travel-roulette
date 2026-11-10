@@ -168,3 +168,26 @@ h2,.app-dialog h2{font-size:var(--heading);font-weight:700;letter-spacing:-.035e
 .map-controls .btn{background:transparent;border:0;border-radius:0;color:#23416c}
 #map-scale{text-align:center;color:#3c5475;font:600 12px/26px Pretendard,sans-serif;font-variant-numeric:tabular-nums}
 @media(prefers-reduced-transparency:reduce){:root{--glass:#f9fbff;--frost:none}.traveler-segments,.workspace .draw-card,.app-dialog{background:#f9fbff}}
+
+.travelers-bar p{margin-left:0;padding:5px 10px;border-radius:99px;background:#ffffff87;color:#365678}
+.trip-actions,.trip-create{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.trip-actions .btn,#records-close,#export-records,.records-panel .history-row .btn{background:#ffffffbf;border:1px solid #d2e1f3;border-radius:99px;color:#214c80;box-shadow:0 2px 8px #30537f0c}
+.trip-actions .btn:hover,.trip-actions .btn[aria-expanded=true]{background:#e4f0ff}
+.trip-hint,#trips-status,.trip-entry small{font-size:var(--detail);color:var(--muted)}
+.trip-create{flex-wrap:nowrap;margin:6px 0 10px}.trip-create input{min-width:0}.trip-create button{white-space:nowrap}
+#trip-list{display:grid;gap:6px;margin-top:12px}
+.trip-entry{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#fff;border:1px solid #dce6f3;border-radius:12px;text-decoration:none;overflow-wrap:anywhere}
+.trip-entry[aria-current]{background:#eaf3ff}
+.workspace.row>.records-panel{background:linear-gradient(145deg,#fffffff2,#eff6ffbf)}
+.records-panel .history-row.list-group-item,.records-panel .empty-state{margin-bottom:8px;padding:12px;background:#ffffffcd;border:1px solid #dbe6f4;border-radius:12px}
+.island-setting{margin-bottom:8px;border-radius:10px;background:#f5f9ff;padding:10px 12px;cursor:pointer}
+#options[data-phase=choose] .route-card{position:relative;padding-right:40px}
+#options[data-phase=choose] .route-card::after{content:"";position:absolute;right:14px;width:18px;height:18px;border:2px solid #9daec0;border-radius:50%}
+#options[data-phase=choose] .route-card.chosen::after{background:#0763dd;border:4px solid white;box-shadow:0 0 0 2px #0763dd}
+#options[data-phase=choose] .route-card i{display:none}
+#poll-choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(195px,100%),1fr))}
+.ballot-option{position:relative;text-align:left;display:grid;gap:3px;border-radius:14px;border:1px solid #cad8ea;padding:14px 58px 14px 14px;background:#ffffffdb;color:var(--ink)}
+.ballot-option small{color:var(--muted)}.ballot-option span{position:absolute;right:14px;top:50%;transform:translateY(-50%);min-width:22px;height:22px;line-height:20px;text-align:center;border:1px solid #9db0cb;border-radius:99px;padding-inline:3px}
+.ballot-option.picked,.ballot-option.winner{background:#edf5ff;border-color:var(--accent)}.ballot-option.picked span,.ballot-option.winner span{background:var(--accent);color:white;border-color:var(--accent)}
+#cast-ballot{margin-top:12px}
+@media(max-width:720px){.intro{flex-wrap:wrap}.travelers-bar p{padding:2px 6px}.trip-actions .btn{min-height:38px}}

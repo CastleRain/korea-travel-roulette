@@ -102,3 +102,16 @@ test('four friends vote once, ties require a runoff among leaders and a winner e
   for(let i=0;i<4;i++)assert.equal(await ballot(2,i,Array(i+1).fill('B')),200);
   assert.equal(await ballot(3,0,['B']),403);
 });
+
+test('trip directory is shared within the link and entries cannot be overwritten or deleted',async()=>{
+  const series=crypto.randomUUID().replaceAll('-',''),id=crypto.randomUUID().replaceAll('-','');
+  const path=`tripRooms/${series}/trips/${id}`, parent=`projects/${project}/databases/(default)/documents/`;
+  const headers=uid=>({'Content-Type':'application/json',Authorization:'Bearer '+token(uid)});
+  const create=title=>fetch(base+':commit',{method:'POST',headers:headers('a'),body:JSON.stringify({writes:[{update:{name:parent+path,fields:{title:value(title)}},updateTransforms:[{fieldPath:'createdAt',setToServerValue:'REQUEST_TIME'}]}]})});
+  assert.equal((await create('')).status,403);
+  assert.equal((await create('겨울 여행')).status,200);
+  assert.equal((await fetch(base+'/'+path,{headers:headers('b')})).status,200);
+  assert.equal((await fetch(base+'/'+path)).status,403);
+  assert.equal((await create('overwrite')).status,403);
+  assert.equal((await fetch(base+'/'+path,{method:'DELETE',headers:headers('a')})).status,403);
+});

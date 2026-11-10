@@ -18,6 +18,27 @@ export async function connectFirebase(config) {
   const folder = firestoreSdk.collection(db,'users',user.uid,'draws');
   return {
     uid:user.uid,
+    async createTrip(series,title) {
+      const id=crypto.randomUUID().replaceAll('-','');
+      await firestoreSdk.setDoc(firestoreSdk.doc(db,'tripRooms',series,'trips',id),{title,createdAt:firestoreSdk.serverTimestamp()});
+      return id;
+    },
+    async tripTitle(series,id) {
+      return (await timeout(firestoreSdk.getDocFromServer(firestoreSdk.doc(db,'tripRooms',series,'trips',id)))).data()?.title;
+    },
+    async trips(series) {
+      const collection=firestoreSdk.collection(db,'tripRooms',series,'trips');
+      const rows=[];
+      let cursor;
+      do{
+        const limits=[firestoreSdk.orderBy('createdAt','desc'),firestoreSdk.limit(100)];
+        if(cursor)limits.push(firestoreSdk.startAfter(cursor));
+        const snap=await timeout(firestoreSdk.getDocsFromServer(firestoreSdk.query(collection,...limits)));
+        rows.push(...snap.docs.map(doc=>({id:doc.id,title:doc.data().title})));
+        cursor=snap.size===100?snap.docs.at(-1):null;
+      }while(cursor);
+      return rows;
+    },
     async save(record) {
       const target = record.roomId ? firestoreSdk.collection(db,'tripRooms',record.roomId,'travelers',record.travelerName,'draws') : folder;
       const ref = firestoreSdk.doc(target,record.id);
