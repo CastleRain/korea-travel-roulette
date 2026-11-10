@@ -77,3 +77,8 @@ Windows에서 in-app browser로 로컬 및 배포 사이트를 직접 조작했�
 최신 결과는 [Firebase 연결 기록](FIREBASE_CONNECTION_STATUS.md)을 따른다. 사용자 승인 후 콘솔에서 익명 인증·본인 경로 규칙을 적용했다. 로컬 및 공개 서비스에서 실제 Firebase 저장을 확인했다. 공개 서비스의 연결테스트/경상북도 구미시 저장과 재로딩 후 유지 확인. Bootstrap 기반 기록 요약·카드·상태·모바일 배치 확인. 테스트28/28·빌드·내용 해시 import5개 일치·GitHub Actions42831923960 성공. 운영 DB의 타인 접근 부정 테스트와 다른 기기 공유는 미실행이다.
 
 변경 파일: public/firebase-config.js, public/index.html, public/style.css, src/app.js, scripts/build.mjs 및 README/설정/결정/검증 문서. Firebase Hosting·유료 요금제·계정 자동 삭제는 사용하지 않았다. 기존 기록을 지우지 않았다. 후속 서비스 테스트 가능.
+
+
+## 2026-11-11 네 명 여행 화면
+
+[구현·실행·제한·배포 기록](DESK_UI.md). 자동30/30·빌드·공개 배포 성공. 기록 페이지6개, 이름 필터, 모바일 화면 전환, 정지 후 입력 잠금 및 Firebase 저장·재방문을 직접 확인했다. 기존 기록과 UID 규칙 유지. 다른 기기 공유·OS 모션 줄이기 전환·화면 읽기 도구 전수 검사는 미실행이다.
