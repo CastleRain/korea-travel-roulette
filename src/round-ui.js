@@ -12,6 +12,7 @@ export function setupRound({catalog, room, traveler, scope, finalRecord, onBusy,
     } catch {}
   }
   function render() {
+    el('options').classList.remove('arriving');
     const spinning = phase === 'spin', choosing = phase === 'choose';
     const busy = spinning || phase === 'saving';
     onBusy(busy, phase === 'done');
@@ -75,6 +76,7 @@ export function setupRound({catalog, room, traveler, scope, finalRecord, onBusy,
     id = crypto.randomUUID();
     persist({id, pairs:options.map(o => [o.province.id,o.destination.id])});
     render();
+    el('options').classList.add('arriving');
     el('options').children[0].focus();
   }
   async function act() {

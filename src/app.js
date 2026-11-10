@@ -51,21 +51,56 @@ function svgNode(tag, attributes) {
   for (const [name,value] of Object.entries(attributes)) result.setAttribute(name,String(value));
   return result;
 }
-function mapView(bounds, padding=25) {
-  if (!bounds) currentView=[0,0,640,650];
-  else {
-    let [x1,y1,x2,y2] = bounds;
-    const width=Math.max(65,x2-x1)+padding*2, height=Math.max(65,y2-y1)+padding*2;
-    currentView=[(x1+x2-width)/2,(y1+y2-height)/2,width,height];
-  }
-  applyView();
-}
 function applyView() {
-  const svg=$('korea-map'), scale=currentView[2]/640;
+  const svg=$('korea-map');
   svg.setAttribute('viewBox',currentView.join(' '));
-  svg.style.setProperty('--map-label-size',`${11*scale}px`);
-  svg.style.setProperty('--map-label-outline',`${3*scale}px`);
-  svg.querySelectorAll('.map-pin').forEach(pin=>pin.setAttribute('r',4*scale));
+  const scale=svg.getScreenCTM()?.a;
+  if(scale>0) svg.style.setProperty('--map-label-size',`${12/scale}px`);
+}
+
+function setupMapNavigation(svg) {
+  let gesture=null, suppressClick=false;
+  function move(x,y,width,height) {
+    manualView=true;
+    // Keep part of the mapped territory reachable at every zoom level.
+    currentView=[Math.max(12-width*.8,Math.min(590-width*.2,x)),
+      Math.max(12-height*.8,Math.min(485-height*.2,y)),width,height];
+    applyView();
+  }
+  svg.addEventListener('pointerdown',event=>{
+    if(!event.isPrimary || event.button!==0)return;
+    suppressClick=false;
+    gesture={id:event.pointerId,x:event.clientX,y:event.clientY,view:[...currentView],scale:svg.getScreenCTM().a,drag:false};
+  });
+  svg.addEventListener('pointermove',event=>{
+    if(!gesture || event.pointerId!==gesture.id)return;
+    const dx=event.clientX-gesture.x,dy=event.clientY-gesture.y;
+    if(!gesture.drag && Math.hypot(dx,dy)<5)return;
+    if(!gesture.drag){
+      gesture.drag=true;svg.setPointerCapture(event.pointerId);svg.classList.add('panning');
+    }
+    const [x,y,w,h]=gesture.view;
+    move(x-dx/gesture.scale,y-dy/gesture.scale,w,h);
+  });
+  function end(event){
+    if(!gesture || event.pointerId!==gesture.id)return;
+    suppressClick=gesture.drag;
+    gesture=null;svg.classList.remove('panning');
+  }
+  for(const type of ['pointerup','pointercancel','lostpointercapture'])svg.addEventListener(type,end);
+  svg.addEventListener('pointerleave',event=>{if(gesture && !gesture.drag)end(event);});
+  svg.addEventListener('click',event=>{
+    if(suppressClick && event.detail){event.stopImmediatePropagation();event.preventDefault();suppressClick=false;}
+  },true);
+  svg.addEventListener('keydown',event=>{
+    if(event.target!==svg)return;
+    const delta={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[event.key];
+    if(!delta)return;
+    event.preventDefault();
+    const [x,y,w,h]=currentView;
+    move(x+delta[0]*w*.12,y+delta[1]*h*.12,w,h);
+  });
+  new ResizeObserver(()=>{if(currentView)applyView();}).observe(svg);
 }
 function setupMap() {
   const svg=$('korea-map');
@@ -87,7 +122,7 @@ function setupMap() {
     const label=svgNode('text',{x,y,'text-anchor':'middle',class:'map-label',id:`label-${p.id}`});
     label.textContent=p.id==='50'?'제주 (별도 표시)':shortNames[p.name]||p.shortName;labels.append(label);
   }
-  svg.append(labels);fitMap();
+  svg.append(labels);svg.append(districts);fitMap();setupMapNavigation(svg);
   $('map-title').textContent='대한민국 행정구역 지도 · 아직 선택된 지역 없음';
 }
 function preview(options, interactive=false, selected=-1) {
@@ -331,8 +366,9 @@ function setupControls() {
     $('records-toggle').setAttribute('aria-expanded',String(open));
     $('records-toggle-label').textContent=open?'여행 기록 접기':'여행 기록 펼치기';
     for(const [id,active] of [['view-records',open],['view-draw',!open]]) {$(id).classList.toggle('active',active);$(id).setAttribute('aria-pressed',String(active));}
-    if(restoreFocus) $('records-toggle').focus();
+    if(restoreFocus) (matchMedia('(max-width:991px)').matches ? $('view-draw') : $('records-toggle')).focus();
   }
+  document.querySelector('.header-nav a[href="#roulette"]').onclick=()=>showRecords(false);
   $('records-toggle').addEventListener('click',()=>showRecords($('records-panel').hidden));
   $('records-close').addEventListener('click',()=>showRecords(false,true));
   $('view-draw').addEventListener('click',()=>showRecords(false));$('view-records').addEventListener('click',()=>showRecords(true));
@@ -350,7 +386,7 @@ function setupControls() {
   $('help-open').addEventListener('click',()=>$('help-dialog').showModal());
   document.querySelectorAll('[data-close]').forEach(button=>button.addEventListener('click',()=>$(button.dataset.close).close()));
   $('map-confirm').onclick=()=>round.act();
-  $('map-reset').addEventListener('click',()=>{manualView=true;mapView();});
+  $('map-reset').addEventListener('click',()=>{manualView=false;fitMap();});
   $('map-zoom-in').addEventListener('click',()=>zoom(.8));
   $('map-zoom-out').addEventListener('click',()=>zoom(1.25));
   function zoom(factor) {
