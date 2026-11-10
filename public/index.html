@@ -28,7 +28,7 @@
   </header>
   <main class="container-xxl app-main">
     <section class="intro" aria-labelledby="title">
-      <div><p class="section-label">여행지 선택이 어려울 때</p><h1 id="title">다음 여행지, <span>어디로?</span></h1><p class="intro-description">전국 지도에서 뽑고, 마음에 드는 곳만 기록하세요.</p></div>
+      <div><p class="section-label">여행지 선택이 어려울 때</p><h1 id="title">다음 여행지, <span>어디로?</span></h1><p class="intro-description">세 곳을 뽑고, 떠나고 싶은 한 곳을 친구들과 지도에 남겨보세요.</p></div>
       <button id="records-toggle" class="btn btn-sm btn-outline-secondary" aria-controls="records-panel" aria-expanded="false"><i class="bi bi-journal-text" aria-hidden="true"></i> <span id="records-toggle-label">여행 기록 펼치기</span></button>
     </section>
 
@@ -45,35 +45,28 @@
               <button class="btn btn-light" id="map-zoom-out" title="지도 축소" aria-label="지도 축소"><i class="bi bi-dash-lg" aria-hidden="true"></i></button>
             </div>
           </div>
-          <div class="map-footer"><span class="map-legend"><span></span> 선택된 목적지</span><span id="map-caption">어디든 여행의 시작이 될 수 있어요.</span></div>
+          <div class="pawn-legend" id="pawn-legend" aria-label="친구별 마지막 여행지"></div>
+          <div class="map-footer"><button id="invite" class="btn btn-sm btn-light"><i class="bi bi-link-45deg"></i> 지도 초대 링크</button><span id="map-caption" role="status">공유 지도 연결 중</span></div>
         </div>
       </div>
 
       <div class="draw-column">
         <div class="card draw-card">
           <div class="draw-top"><span class="draw-panel-label"><i class="bi bi-shuffle" aria-hidden="true"></i> 여행지 뽑기</span><span class="draw-status badge" id="draw-status">준비 중</span></div>
-          <div class="steps" aria-label="추첨 진행"><div class="step current" id="step-1"><span>1</span><b>시·도</b></div><i class="bi bi-chevron-right step-arrow" aria-hidden="true"></i><div class="step" id="step-2"><span>2</span><b>시·군·구</b></div></div>
-          <div class="ticket" id="ticket"><p class="ticket-label" id="ticket-label">다음 여행지를 기다리는 중</p><div class="destination" id="destination">어디든 좋아요</div><p class="destination-sub" id="destination-sub">시작한 뒤 Enter로 멈춰보세요.</p><span id="ticket-route" class="visually-hidden" aria-hidden="true"></span></div>
-          <p class="announcement" id="announcement" aria-live="polite" role="status">지역 데이터를 불러오고 있습니다.</p>
-          <div class="result-actions" id="result-actions" hidden><button id="save-result" class="btn btn-primary" disabled>이 결과 기록하기</button><span id="result-traveler" class="result-traveler"></span><div class="result-links"><button id="copy-result" class="btn btn-link"><i class="bi bi-copy" aria-hidden="true"></i> 결과 복사</button><a id="search-map" class="btn btn-link" target="_blank" rel="noopener noreferrer"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> 지도에서 보기</a><button id="reroll-district" class="btn btn-link">이 시·도에서 다시 뽑기</button></div></div>
-          <p id="auto-stop" class="auto-stop" hidden></p><div class="actions"><button id="primary" class="btn btn-primary primary-button" disabled><span id="primary-label">준비 중</span><i id="primary-icon" class="bi bi-arrow-right" aria-hidden="true"></i></button><button id="restart" class="btn reset-button" title="처음부터 다시" aria-label="처음부터 다시" disabled><i class="bi bi-arrow-clockwise" aria-hidden="true"></i></button></div>
-          <div class="keyboard-hint"><kbd>Enter</kbd><span id="keyboard-text">시작 / 추첨 멈추기</span></div>
-          <div class="draw-options"><button id="scope-open" class="btn scope-button"><i class="bi bi-sliders2" aria-hidden="true"></i><span>추첨 지역</span><b id="scope-count">전체</b><i class="bi bi-chevron-down" aria-hidden="true"></i></button><p>시·도별 동일 확률 · 중복 당첨 허용</p></div>
+          <div class="route-stage"><i class="bi bi-compass route-dial" aria-hidden="true"></i><h2 id="round-title">이번 여행 후보</h2><p id="announcement" role="status">친구를 선택해주세요.</p></div>
+          <div id="options" class="route-options" aria-label="여행지 후보"></div>
+          <p id="auto-stop" class="auto-stop" hidden></p>
+          <button id="primary" class="btn btn-primary primary-button" disabled><span id="primary-label">후보 뽑기</span></button>
+          <div class="draw-options"><button id="scope-open" class="btn scope-button"><i class="bi bi-sliders2" aria-hidden="true"></i><span>추첨 지역</span><b id="scope-count">전체</b><i class="bi bi-chevron-down" aria-hidden="true"></i></button><p>시·도별 동일 확률 · 한 번의 추첨에서 중복 제외</p></div>
         </div>
       </div>
       <aside class="records-panel card" id="records-panel" aria-label="여행 기록" hidden>
         <div class="section-heading"><h2>여행 기록</h2><button id="records-close" class="btn btn-sm btn-light" aria-label="여행 기록 접기"><i class="bi bi-layout-sidebar-inset-reverse" aria-hidden="true"></i></button><button id="export-records" class="btn btn-sm btn-light" disabled aria-label="기록 내려받기"><i class="bi bi-download" aria-hidden="true"></i></button></div>
-        <div class="nav nav-pills record-tabs" role="tablist" aria-label="기록 구분"><button class="nav-link active" id="tab-candidates" role="tab" aria-selected="true" aria-controls="candidates">뽑은 결과 <span id="candidate-total" class="badge">0</span></button><button class="nav-link" id="tab-history" role="tab" aria-selected="false" aria-controls="history" tabindex="-1">저장됨 <span id="log-total" class="badge">0</span></button></div>
-        <label class="visually-hidden" for="record-person">기록 이름 필터</label><select id="record-person" class="form-select form-select-sm"><option value="">모든 사람</option><option>지태근</option><option>장성우</option><option>이주열</option><option>성석근</option><option value="__legacy">그 외 이름 / 기존 기록</option></select>
-        <section id="candidates" role="tabpanel" aria-labelledby="tab-candidates"><div class="candidate-toolbar"><label><input id="select-candidates" class="form-check-input" type="checkbox"> 이 페이지 선택</label><span id="selection-count" role="status">0개 선택</span></div><div id="candidate-list" class="candidate-list list-group"></div><button id="save-selected" class="btn btn-sm btn-primary w-100" disabled>선택한 결과 기록하기</button></section>
-        <section id="history" role="tabpanel" aria-labelledby="tab-history" hidden><div id="history-list" class="history-list list-group"></div></section>
+        <p id="history-owner" class="history-owner"></p><section id="history"><div id="history-list" class="history-list list-group"></div></section>
         <nav class="record-pagination" aria-label="기록 페이지"><button id="records-prev" class="btn btn-sm btn-light" aria-label="이전 기록 페이지"><i class="bi bi-chevron-left" aria-hidden="true"></i></button><span id="records-page" role="status">1 / 1</span><button id="records-next" class="btn btn-sm btn-light" aria-label="다음 기록 페이지"><i class="bi bi-chevron-right" aria-hidden="true"></i></button></nav>
         <div class="storage-notice"><span class="status-dot" id="storage-dot"></span><p id="storage-status" role="status">저장소 확인 중</p><button id="sync-records" class="btn btn-link text-button" hidden>다시 저장</button></div><p class="storage-explanation" id="storage-explanation">선택한 기록만 Firebase에 저장합니다.</p>
       </aside>
     </section>
-
-    <section class="how-it-works" aria-label="사용 방법"><div><span>01</span><p><b>이름으로 시작</b><span>이름이나 별명을 입력하세요</span></p></div><div><span>02</span><p><b>Enter로 선택</b><span>시·도, 시·군·구를 차례로 뽑아요</span></p></div><div><span>03</span><p><b>원하는 결과만 기록</b><span>하나씩 또는 여러 개를 선택하세요</span></p></div></section>
-
 
   </main>
 
@@ -81,14 +74,13 @@
 
   <dialog id="profile-dialog" class="app-dialog" aria-labelledby="profile-title" aria-describedby="profile-description"><form id="profile-form" novalidate>
     <div class="dialog-heading"><div class="entry-symbol"><i class="bi bi-person" aria-hidden="true"></i></div><button type="button" id="profile-cancel" class="btn btn-light close-button" data-close="profile-dialog" aria-label="이름 변경 취소" hidden><i class="bi bi-x-lg" aria-hidden="true"></i></button></div>
-    <h2 id="profile-title">이름부터 알려주세요</h2><p id="profile-description">여행 기록에 표시할 이름이나 별명이면 충분해요.</p>
-    <div id="profile-choices" class="profile-choices" role="group" aria-label="친구 이름 선택"></div><label for="traveler-name" class="form-label profile-label">이름 또는 별명</label><input id="traveler-name" class="form-control form-control-lg" name="travelerName" type="text" maxlength="20" autocomplete="nickname" placeholder="예: 주말여행자" aria-describedby="profile-error profile-note" autofocus required>
-    <p id="profile-error" class="error-text" role="alert"></p><button type="submit" class="btn btn-primary primary-button">이 이름으로 시작하기 <i class="bi bi-arrow-right" aria-hidden="true"></i></button><p id="profile-note" class="profile-note">이 기기에서 이름을 기억합니다. 이름은 표시용이며, 같은 이름을 쓴 다른 사람과 기록이 공유되지 않습니다.</p>
+    <h2 id="profile-title">누가 떠날 차례인가요?</h2><p id="profile-description">내 이름을 선택하면 후보를 뽑고 여행 기록을 볼 수 있어요.</p>
+    <div id="profile-choices" class="profile-choices" role="group" aria-label="친구 이름 선택"></div>
   </form></dialog>
 
   <dialog id="scope-dialog" class="app-dialog" aria-labelledby="scope-title"><div class="dialog-heading"><h2 id="scope-title">어디까지 떠나볼까요?</h2><button class="btn btn-light close-button" data-close="scope-dialog" aria-label="지역 선택 닫기"><i class="bi bi-x-lg" aria-hidden="true"></i></button></div><p class="dialog-description">선택한 시·도 안에서 추첨해요. 세종과 제주도 포함합니다.</p><div class="scope-toolbar btn-group btn-group-sm" role="group" aria-label="전체 지역 선택"><button id="select-all" class="btn btn-outline-secondary">전체 선택</button><button id="select-none" class="btn btn-outline-secondary">전체 해제</button></div><div id="province-options" class="province-options"></div><p id="scope-error" class="error-text" role="alert"></p><button id="apply-scope" class="btn btn-primary primary-button">선택한 지역으로 설정 <i class="bi bi-check2" aria-hidden="true"></i></button></dialog>
 
-  <dialog id="help-dialog" class="app-dialog" aria-labelledby="help-title"><div class="dialog-heading"><h2 id="help-title">이용 안내</h2><button class="btn btn-light close-button" data-close="help-dialog" aria-label="안내 닫기"><i class="bi bi-x-lg" aria-hidden="true"></i></button></div><ol class="help-list"><li><b>이름 입력 후 시작</b><p>처음 방문하면 이름이나 별명을 입력합니다. 이름은 이 기기에서 기억합니다.</p></li><li><b>Enter로 시·도, 시·군·구 확정</b><p>추첨을 시작한 뒤 Enter를 누르면 보이던 지역이 확정됩니다. 시·도 확정 1.2초 뒤 하위 추첨이 시작돼요. 키를 뗐다가 다시 눌러주세요. 누르지 않으면 각 단계가 5초 뒤 자동으로 멈춥니다.</p></li><li><b>예외 지역과 확률</b><p>세종은 시·도 선택으로 완료하며, 제주는 제주시·서귀포시를 추첨합니다. 일반구는 시 단위로 합치고 섬도 포함합니다. 선택 시·도끼리 균등, 그 안의 목적지끼리 균등 확률입니다. 중복은 허용합니다.</p></li><li><b>원하는 결과만 기록</b><p>추첨만 하면 임시 목록에 모입니다. 결과 하나를 바로 기록하거나 여러 개를 체크해 기록하세요. 이름을 변경해도 기존 기록의 이름은 바뀌지 않습니다.</p></li><li><b>이름과 저장 범위</b><p>이름은 로그인 계정이 아닙니다. 같은 브라우저에서 이름을 바꾸면 기존 기록은 계속 보입니다. Firebase 연결 후에는 선택 기록만 익명 사용자 ID별로 저장합니다. 다른 기기에서 같은 이름을 입력해도 기록을 공유하지 않으며 브라우저 데이터 삭제 시 접근이 끊길 수 있습니다.</p></li></ol><p class="help-footnote">지도는 여행지 선정용입니다. 교통편과 이동 가능 여부는 출발 전에 확인해주세요.</p></dialog>
+  <dialog id="help-dialog" class="app-dialog" aria-labelledby="help-title"><div class="dialog-heading"><h2 id="help-title">이용 안내</h2><button class="btn btn-light close-button" data-close="help-dialog" aria-label="안내 닫기"><i class="bi bi-x-lg" aria-hidden="true"></i></button></div><ol class="help-list"><li><b>친구와 지도 열기</b><p>지도 초대 링크를 친구에게 보내고 같은 링크에서 각자 이름을 고르세요. 링크를 가진 사람이 네 이름 중 하나로 참여할 수 있습니다.</p></li><li><b>후보 뽑기</b><p>5초 뒤 멈추거나 Enter로 먼저 멈출 수 있어요. 선택 범위에 여행지가 3곳보다 적으면 가능한 곳만 보여줘요.</p></li><li><b>한 곳 선택하기</b><p>마음에 드는 후보를 누른 뒤 확정하세요. 지도에는 친구별 가장 최근 선택이, 기록에는 현재 친구의 선택 내역이 표시됩니다.</p></li></ol><p class="help-footnote">지도는 여행지 선정용입니다. 교통편과 이동 가능 여부는 출발 전에 확인해주세요.</p></dialog>
   <div id="toast" role="status" class="app-toast" hidden></div>
   <noscript>이 앱을 사용하려면 브라우저의 JavaScript를 켜주세요.</noscript>
 </body>

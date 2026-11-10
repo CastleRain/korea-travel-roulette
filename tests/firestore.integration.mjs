@@ -8,8 +8,8 @@ function token(uid) {const now=Math.floor(Date.now()/1000);return [Buffer.from(J
 const id=crypto.randomUUID();
 function payload(drawId=id){return {id:drawId,provinceId:'11',provinceName:'서울특별시',destinationId:'11110',destinationName:'종로구',fullName:'서울특별시 종로구',singleStage:false,dataVersion:'2026-10-01',drawnAt:new Date().toISOString()};}
 function value(v){return typeof v==='boolean'?{booleanValue:v}:{stringValue:v};}
-async function write({uid='alice',owner='alice',drawId=id,data=payload(drawId),auth=true}={}){
-  return fetch(`${base}:commit`,{method:'POST',headers:{'Content-Type':'application/json',...(auth?{Authorization:`Bearer ${token(uid)}`}:{})},body:JSON.stringify({writes:[{update:{name:`projects/${project}/databases/(default)/documents/users/${owner}/draws/${drawId}`,fields:Object.fromEntries(Object.entries(data).map(([k,v])=>[k,value(v)]))},updateTransforms:[{fieldPath:'savedAt',setToServerValue:'REQUEST_TIME'}]}]})});
+async function write({uid='alice',owner='alice',drawId=id,data=payload(drawId),auth=true,path=`users/${owner}/draws/${drawId}`}={}){
+  return fetch(`${base}:commit`,{method:'POST',headers:{'Content-Type':'application/json',...(auth?{Authorization:`Bearer ${token(uid)}`}:{})},body:JSON.stringify({writes:[{update:{name:`projects/${project}/databases/(default)/documents/${path}`,fields:Object.fromEntries(Object.entries(data).map(([k,v])=>[k,value(v)]))},updateTransforms:[{fieldPath:'savedAt',setToServerValue:'REQUEST_TIME'}]}]})});
 }
 test('unauthenticated writes are denied',async()=>assert.equal((await write({auth:false})).status,403));
 test('another user cannot write under someone else',async()=>assert.equal((await write({uid:'bob'})).status,403));
@@ -42,4 +42,17 @@ test('empty, whitespace-only, overlength or incorrectly typed display names are 
   for(const travelerName of ['', '   ', '가'.repeat(21), true]) {
     const drawId=crypto.randomUUID();assert.equal((await write({drawId,data:{...payload(drawId),travelerName}})).status,403);
   }
+});
+
+test('two anonymous devices share a room selection, with immutable scoped writes',async()=>{
+  const room='a'.repeat(32), name='지태근', drawId=crypto.randomUUID();
+  const path=`tripRooms/${room}/travelers/${name}/draws/${drawId}`;
+  const data={...payload(drawId),roomId:room,travelerName:name};
+  assert.equal((await write({path,data,auth:false})).status,403);
+  assert.equal((await write({path,data:{...data,travelerName:'장성우'}})).status,403);
+  assert.equal((await write({path,data:{...data,roomId:'b'.repeat(32)}})).status,403);
+  assert.equal((await write({path,data})).status,200);
+  assert.equal((await fetch(base+'/'+path,{headers:{Authorization:'Bearer '+token('bob')}})).status,200);
+  assert.equal((await fetch(base+'/'+path)).status,403);
+  assert.equal((await write({uid:'bob',path,data})).status,403);
 });

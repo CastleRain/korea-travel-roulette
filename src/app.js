@@ -1,19 +1,19 @@
-import { Roulette, STATES, validateCatalog, makeRecord } from './roulette.js';
+import { validateCatalog } from './roulette.js';
 import { LocalRecords, RecordService } from './storage.js';
 import { connectFirebase } from './firebase.js';
 import { firebaseConfig } from '../firebase-config.js';
-import { TravelerProfile } from './profile.js';
+import { currentRoom, historyFor } from './group.js';
+import { setupRound } from './round-ui.js';
 import { recordPage, FRIENDS } from './record-view.js';
 
 const $ = id=>document.getElementById(id);
 const ns = 'http://www.w3.org/2000/svg';
-let catalog, engine, service, selectedIds = [], lastState, lastMapKey, lastResult = null;
-let firebaseState = 'unconfigured', localAvailable = false, listGeneration = 0, toastTimer;
-let currentView = [0,0,640,650], enterHeld = false;
-const profile = new TravelerProfile();
-const selectedCandidates = new Set();
-let candidateRecords = [], savedRecordIds = new Set(), savingSelection = false;
-let savedRecords=[], recordTab='candidates', personFilter='', pageNumber=1, settling=false, settleTimer;
+const room = currentRoom();
+let catalog, round, service, selectedIds = [], name = '', pageNumber = 1;
+let savedRecords = [], sharedRecords = new Map(), firebaseState = 'connecting', unsubscribe;
+let localAvailable = false, listGeneration = 0, toastTimer, enterHeld = false;
+let currentView = [0,0,640,650];
+const colors = ['#973d55','#21637a','#977022','#3c7055'];
 const shortNames = {'서울특별시':'서울','부산광역시':'부산','대구광역시':'대구','인천광역시':'인천','대전광역시':'대전','울산광역시':'울산','세종특별자치시':'세종','경기도':'경기','강원특별자치도':'강원','충청북도':'충북','충청남도':'충남','전북특별자치도':'전북','경상북도':'경북','경상남도':'경남','제주특별자치도':'제주','전남광주통합특별시':'전남광주'};
 const dateFormat = new Intl.DateTimeFormat('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:'Asia/Seoul'});
 
@@ -70,222 +70,106 @@ function setupMap() {
   svg.append(labels);
   $('map-title').textContent='대한민국 행정구역 지도 · 아직 선택된 지역 없음';
 }
-function updateMap() {
-  const province=engine.province, destination=engine.destination;
-  const key=`${province?.id||''}/${destination?.id||''}`;
-  if (key===lastMapKey) return;
-  lastMapKey=key;
-  for (const p of catalog.provinces) {
-    $(`map-${p.id}`).classList.toggle('selected',p.id===province?.id);
-    $(`label-${p.id}`).classList.toggle('selected',p.id===province?.id);
-  }
-  const group=$('selected-district');group.replaceChildren();
-  if (destination) {
-    const path=svgNode('path',{d:destination.path,class:'district-path'});
-    const title=svgNode('title',{});title.textContent=destination.name;path.append(title);group.append(path);
+function preview(options) {
+  const group = $('selected-district');
+  group.replaceChildren(...options.map(({destination}, i) => svgNode('path',{
+    d:destination.path, class:'route-preview', style:`--slot:${i}`
+  })));
+  $('map-badge').textContent = options.length ? `후보 ${options.length}곳` : '전국 지도';
+}
+
+function visibleRecords() {
+  return historyFor(savedRecords, sharedRecords.get(name) || [], name, room);
+}
+function renderPins() {
+  if (!catalog || !$('province-labels')) return;
+  let layer = $('friend-pins');
+  if (!layer) {layer=svgNode('g',{id:'friend-pins'});$('korea-map').append(layer);}
+  layer.replaceChildren();
+  $('pawn-legend').replaceChildren();
+  const placed=[];
+  for (const [index,friend] of FRIENDS.entries()) {
+    const [record]=historyFor(savedRecords.filter(r=>r.roomId===room), sharedRecords.get(friend)||[], friend, room);
+    const province=catalog.provinces.find(p=>p.id===record?.provinceId);
+    const destination=province?.destinations.find(d=>d.id===record.destinationId);
+    const chip=node('span','pawn-key');
+    chip.style.setProperty('--pawn',colors[index]);
+    chip.append(node('b','', '♟'),document.createTextNode(friend+' · '+(destination?.name||'미정')));
+    $('pawn-legend').append(chip);
+    if (!destination) continue;
     const [x,y]=destination.labelPoint;
-    group.append(svgNode('circle',{cx:x,cy:y,r:4,class:'map-pin'}));
-    $('map-badge').textContent=destination.name;
-    $('map-caption').textContent=province.singleStage ? province.name : `${province.name} ${destination.name}`;
-    $('map-title').textContent=`선택한 여행지: ${$('map-caption').textContent}`;
-    mapView(destination.bounds,26);
-  } else if (province) {
-    $('map-badge').textContent=province.name;
-    $('map-caption').textContent=`${province.name} 안에서 목적지를 고르고 있어요.`;
-    $('map-title').textContent=`선택한 시·도: ${province.name}`;
-    mapView(province.bounds,35);
-  } else {
-    $('map-badge').textContent='전국 지도';$('map-caption').textContent='어디든 여행의 시작이 될 수 있어요.';
-    $('map-title').textContent='대한민국 행정구역 지도 · 아직 선택된 지역 없음';mapView();
+    let px=x;
+    while(placed.some(([a,b])=>Math.abs(a-px)<26 && Math.abs(b-y)<32)) px+=28;
+    placed.push([px,y]);
+    const group=svgNode('g',{'aria-label':friend+' '+record.fullName});
+    const title=svgNode('title',{});title.textContent=friend+' · '+record.fullName;
+    group.append(title,svgNode('line',{x1:x,y1:y,x2:px,y2:y-7,stroke:colors[index],'stroke-width':2}));
+    const pawn=svgNode('g',{transform:`translate(${px} ${y-6})`,fill:colors[index],stroke:'white','stroke-width':1.6});
+    pawn.append(svgNode('path',{d:'M-10 0 Q-12 -3 -7 -5 Q-3 -11 -3 -15 L3 -15 Q3 -11 7 -5 Q12 -3 10 0Z'}),svgNode('circle',{cx:0,cy:-19,r:6}));
+    group.append(pawn);layer.append(group);
   }
-}
-
-function renderEngine() {
-  const state=engine.state;
-  const spinning=state===STATES.PROVINCE||state===STATES.DISTRICT;
-  $('destination').textContent=engine.current?.name||'어디든 좋아요';
-  $('auto-stop').hidden=!spinning;
-  if(spinning) $('auto-stop').textContent=`${Math.max(1,Math.ceil((engine.deadline-engine.now())/1000))}초 뒤 자동 정지 · 지금 멈춰도 좋아요`;
-  if (state===lastState) return;
-  lastState=state;
-  const ready=state===STATES.READY, complete=state===STATES.COMPLETE, transition=state===STATES.TRANSITION;
-  $('ticket').classList.toggle('is-spinning',spinning);
-  $('ticket').classList.toggle('complete',complete);
-  $('draw-status').classList.toggle('spinning',spinning);
-  $('primary').classList.toggle('stopping',spinning);
-  $('primary').disabled=transition||!profile.name;
-  $('primary').classList.toggle('next-draw',complete);
-  $('profile-open').disabled=spinning||transition;
-  $('restart').disabled=ready;
-  $('scope-open').disabled=spinning||transition;
-  $('result-actions').hidden=!complete;
-  $('step-1').className=`step ${ready||state===STATES.PROVINCE?'current':'done'}`;
-  $('step-2').className=`step ${state===STATES.DISTRICT?'current':complete?'done':''}`;
-  $('step-2').querySelector('b').textContent=complete&&engine.province.singleStage?'하위 추첨 생략':'시·군·구 뽑기';
-  $('primary-icon').textContent='';
-  $('primary-icon').className=spinning?'bi bi-stop-fill':'bi bi-arrow-right';
-  const descriptions={
-    ready:['준비 완료','여행지 뽑기','첫 번째 목적지를 기다리는 중','시작 버튼을 누르고, 마음이 가는 순간 멈춰보세요.','시작을 누른 뒤 Enter로 멈춰주세요.'],
-    province:['시·도 추첨 중','여기서 멈추기','STEP 01 · 시·도 추첨 중','어느 시·도로 떠나볼까요?','Enter 또는 멈추기 버튼으로 시·도를 확정하세요.'],
-    transition:['시·도 확정','다음 추첨 준비 중','STEP 01 · 시·도 확정','잠시 후 시·군·구 추첨이 시작돼요.',`${engine.province?.name} 확정! 키를 떼고 다음 추첨을 기다려주세요.`],
-    district:['시·군·구 추첨 중','여기서 멈추기','STEP 02 · 시·군·구 추첨 중',`${engine.province?.name} 안의 ${engine.province?.destinations.length}개 후보`,`${engine.province?.name} 안에서 추첨 중입니다. Enter로 최종 목적지를 정하세요.`],
-    complete:['목적지 확정','새로운 여행지 뽑기','당신의 다음 여행지는',engine.province?.singleStage?'세종은 하위 시·군·구 없이 최종 확정해요.':engine.province?.name,`${engine.province?.singleStage?engine.province.name:`${engine.province?.name} ${engine.destination?.name}`} · 목적지가 정해졌어요!`]
-  };
-  const [status,action,label,sub,announcement]=descriptions[state];
-  $('draw-status').textContent=status;$('primary-label').textContent=action;
-  $('ticket-label').textContent=label;$('destination-sub').textContent=sub;
-  $('announcement').textContent=announcement;
-  $('ticket-route').textContent=engine.province?`VIA ${shortNames[engine.province.name]||engine.province.name}`:'FROM 일상';
-  $('keyboard-text').textContent=transition?'키를 떼고 잠시 기다려주세요':complete?'새로운 여행 시작':ready?'시작 / 추첨 멈추기':'지금 보이는 지역 확정';
-  updateMap();
-  updateSaveResult();
-  if(transition||complete) animateConfirmation();
-  else updateInputLock();
-}
-function updateInputLock() {
-  if(!engine) return;
-  const busy=settling||[STATES.PROVINCE,STATES.DISTRICT,STATES.TRANSITION].includes(engine.state);
-  $('primary').disabled=settling||engine.state===STATES.TRANSITION||!profile.name;
-  $('restart').disabled=settling||engine.state===STATES.READY;
-  $('scope-open').disabled=busy;$('profile-open').disabled=busy;
-  $('reroll-district').disabled=settling;
-  document.querySelectorAll('#traveler-choices button').forEach(b=>b.disabled=busy);
-  updateSaveResult();updateSelection();
-}
-function animateConfirmation() {
-  clearTimeout(settleTimer);settling=true;updateInputLock();
-  const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const targets=[$('destination'),document.querySelector('.province-path.selected'),document.querySelector('.map-pin')].filter(Boolean);
-  for(const target of targets) {
-    target.getAnimations().forEach(a=>a.cancel());
-    if(!reduced) target.animate(target===$('destination')?[
-      {transform:'translateY(-14px) scale(.96)',opacity:.5},
-      {transform:'translateY(3px) scale(1.025)',opacity:1,offset:.65},
-      {transform:'translateY(0) scale(1)',opacity:1}
-    ]:[{opacity:.35},{opacity:1}],{duration:700,easing:'cubic-bezier(.2,.7,.2,1)'});
-  }
-  settleTimer=setTimeout(()=>{settling=false;updateInputLock();},reduced?0:700);
-}
-function primaryAction() {
-  if (!engine||settling) return;
-  if (!profile.name) { openProfile(); return; }
-  if (engine.state===STATES.READY||engine.state===STATES.COMPLETE) { lastResult=null;engine.start(selectedIds); }
-  else engine.stop();
-}
-
-async function completed({province,destination}) {
-  const record={...makeRecord(province,destination,catalog.version),travelerName:profile.name};
-  lastResult=record;recordTab='candidates';pageNumber=1;selectedCandidates.clear();
-  $('search-map').href=`https://map.naver.com/p/search/${encodeURIComponent(record.fullName)}`;
-  $('reroll-district').hidden=province.singleStage;
-  updateSaveResult();
-  // Drawing only creates a local candidate. A separate action approves saving.
-  await service.stage(record);
-}
-
-function openProfile() {
-  $('traveler-name').value=profile.name;
-  $('profile-error').textContent='';
-  $('profile-cancel').hidden=!profile.name;
-  $('profile-dialog').querySelector('button[type="submit"]').firstChild.textContent=profile.name?'이름 변경하기 ':'이 이름으로 시작하기 ';
-  if (!$('profile-dialog').open) $('profile-dialog').showModal();
-}
-function renderProfile() {
-  $('profile-name').textContent=profile.name?`${profile.name} 님`:'이름 입력';
-  $('profile-open').title=profile.name?`${profile.name} · 이름 변경`:'이름 입력';
-  $('profile-open').setAttribute('aria-label',profile.name?'이름 변경':'이름 입력');
-  $('active-traveler').textContent=profile.name?`${profile.name} 님의 차례`: '이름을 선택해주세요';
-  document.querySelectorAll('#traveler-choices button').forEach(b=>{const chosen=b.dataset.name===profile.name;b.classList.toggle('active',chosen);b.setAttribute('aria-pressed',String(chosen));});
-  updateInputLock();
-}
-function setupProfile() {
-  for(const name of FRIENDS) {
-    const button=node('button','btn btn-outline-secondary',name);button.type='button';button.dataset.name=name;button.setAttribute('aria-pressed','false');
-    button.addEventListener('click',()=>{profile.set(name);renderProfile();});$('traveler-choices').append(button);
-    const choice=node('button','btn btn-outline-secondary',name);choice.type='button';choice.addEventListener('click',()=>{profile.set(name);$('profile-dialog').close();renderProfile();});$('profile-choices').append(choice);
-  }
-  profile.load(); renderProfile();
-  $('profile-open').addEventListener('click',openProfile);
-  $('profile-dialog').addEventListener('cancel',event=>{if(!profile.name) event.preventDefault();});
-  $('profile-form').addEventListener('submit',event=>{
-    event.preventDefault();
-    try {
-      profile.set($('traveler-name').value);
-      $('profile-dialog').close(); renderProfile();
-      if(!profile.persistent) toast('이름을 이 기기에 기억할 수 없어 이번 방문 동안만 사용합니다.');
-    } catch(error) { $('profile-error').textContent=error.message;$('traveler-name').focus(); }
-  });
-  if(!profile.name) openProfile();
-}
-function updateSaveResult() {
-  const saved = lastResult && savedRecordIds.has(lastResult.id);
-  $('save-result').textContent=saved?'기록에 남겼어요':savingSelection?'기록하는 중…':'이 결과 기록하기';
-  $('save-result').disabled=settling||!lastResult||saved||savingSelection||!candidateRecords.some(r=>r.id===lastResult.id);
-  $('result-traveler').textContent=lastResult?`${lastResult.travelerName} 님의 추첨 결과`:'';
-}
-function currentRecords() { return recordPage(recordTab==='candidates'?candidateRecords:savedRecords,personFilter,pageNumber); }
-function updateSelection() {
-  const visible=currentRecords().items;
-  const checked=visible.filter(r=>selectedCandidates.has(r.id)).length;
-  $('select-candidates').checked=visible.length>0&&checked===visible.length;
-  $('select-candidates').indeterminate=checked>0&&checked<visible.length;
-  $('select-candidates').disabled=!visible.length||savingSelection;
-  $('selection-count').textContent=`${selectedCandidates.size}개 선택`;
-  $('save-selected').disabled=settling||!selectedCandidates.size||savingSelection;
-  $('save-selected').textContent=savingSelection?'기록하는 중…':`선택한 결과 기록하기${selectedCandidates.size?` (${selectedCandidates.size})`:''}`;
+  $('map-title').textContent='대한민국 여행 지도. 친구별 여행지는 지도 아래 범례에 표시됩니다.';
 }
 function renderRecords() {
-  const page=currentRecords();pageNumber=page.page;
-  $('candidate-total').textContent=candidateRecords.length;$('log-total').textContent=savedRecords.length;
-  $('candidates').hidden=recordTab!=='candidates';$('history').hidden=recordTab!=='history';
-  for(const tab of ['candidates','history']) {const b=$(`tab-${tab}`),active=recordTab===tab;b.classList.toggle('active',active);b.setAttribute('aria-selected',String(active));b.tabIndex=active?0:-1;}
-  $('records-page').textContent=`${page.page} / ${page.pages} · ${page.total}개`;
-  $('records-prev').disabled=page.page===1;$('records-next').disabled=page.page===page.pages;
-  const fragment=document.createDocumentFragment();
-  for(const r of page.items) {
-    const candidate=recordTab==='candidates';
-    const row=node(candidate?'label':'article',`${candidate?'candidate-row list-group-item-action':'history-row'} list-group-item`);
-    if(candidate) {const checkbox=node('input','form-check-input');checkbox.type='checkbox';checkbox.dataset.recordId=r.id;checkbox.checked=selectedCandidates.has(r.id);checkbox.setAttribute('aria-label',`${r.travelerName} · ${r.fullName} 기록 선택`);row.append(checkbox);}
-    const info=node('div','history-info');info.append(node('h3','',r.fullName));
-    const meta=node('div','record-metadata');meta.append(node('span','record-person',r.travelerName||'기존 기록'));
-    const time=node('time','',dateFormat.format(new Date(r.drawnAt)));time.dateTime=r.drawnAt;meta.append(time);info.append(meta);
-    if(!candidate) {const status=node('span',`save-tag badge ${r.syncState==='synced'?'':'pending'}`);status.append(icon(r.syncState==='synced'?'cloud-check':'clock'),document.createTextNode(r.syncState==='synced'?'저장 완료':'저장 대기'));meta.append(status);}
-    row.append(info);
-    if(!candidate) {const link=node('a','history-map-link btn btn-light');link.append(icon('arrow-up-right'));link.href=`https://map.naver.com/p/search/${encodeURIComponent(r.fullName)}`;link.target='_blank';link.rel='noopener noreferrer';link.setAttribute('aria-label',`${r.fullName} 지도 검색`);row.append(link);}
-    fragment.append(row);
-  }
-  if(!page.total) {const empty=node('div','empty-state');empty.append(icon(recordTab==='candidates'?'shuffle':'bookmark'),node('h3','',recordTab==='candidates'?'뽑아본 결과가 없어요':'아직 저장한 기록이 없어요'),node('p','',personFilter?'다른 이름이나 모든 사람을 선택해보세요.':'여행지를 뽑고 원하는 결과를 기록하세요.'));fragment.append(empty);}
-  $(recordTab==='candidates'?'candidate-list':'history-list').replaceChildren(fragment);
-  updateSelection();updateSaveResult();
+  const records=visibleRecords();
+  const page=recordPage(records,name,pageNumber);
+  pageNumber=page.page;
+  $('history-count').textContent=records.length;
+  $('history-owner').textContent=name ? name+' 님이 선택한 여행지' : '친구를 선택해주세요';
+  $('records-page').textContent=`${page.page} / ${page.pages} · ${records.length}개`;
+  $('records-prev').disabled=page.page===1;
+  $('records-next').disabled=page.page===page.pages;
+  $('export-records').disabled=!records.length;
+  const rows=page.items.map(record=>{
+    const row=node('article','history-row list-group-item');
+    const info=node('div','history-info');
+    const meta=node('div','record-metadata');
+    meta.append(node('time','',dateFormat.format(new Date(record.drawnAt))),node('span','save-tag',record.syncState==='pending'?'동기화 대기':record.roomId?'공유 지도':'개인 기록'));
+    info.append(node('h3','',record.fullName),meta);
+    const link=node('a','history-map-link btn btn-light');
+    link.href='https://map.naver.com/p/search/'+encodeURIComponent(record.fullName);
+    link.target='_blank';link.rel='noopener noreferrer';link.setAttribute('aria-label',record.fullName+' 지도 검색');link.append(icon('arrow-up-right'));
+    row.append(info,link);return row;
+  });
+  $('history-list').replaceChildren(...(rows.length?rows:[node('p','empty-state','후보 중 한 곳을 확정하면 여기에 남아요.')]));
+  renderPins();
 }
-async function saveResults(ids) {
-  if(savingSelection||settling) return;
-  savingSelection=true;updateSelection();updateSaveResult();
-  try {
-    const count=await service.saveSelected(ids);
-    if(count) {recordTab='history';pageNumber=1;selectedCandidates.clear();}
-    toast(count?`${count}개 목적지를 내 여행 기록에 남겼습니다.`:'이미 기록했거나 선택된 결과가 없습니다.');
-  } catch { toast('기록을 남기지 못했습니다. 다시 선택해주세요.'); }
-  finally {savingSelection=false;await refreshHistory();}
+
+function setupProfile() {
+  function choose(friend) {
+    name=friend;pageNumber=1;
+    $('profile-dialog').close();
+    $('profile-name').textContent=friend;
+    $('profile-cancel').hidden=false;
+    $('active-traveler').textContent=friend+' 님의 차례';
+    for(const b of $('traveler-choices').children) {
+      b.classList.toggle('active',b.textContent===friend);
+      b.setAttribute('aria-pressed',String(b.textContent===friend));
+    }
+    round?.reset(true);renderRecords();
+  }
+  for(const friend of FRIENDS) for(const id of ['traveler-choices','profile-choices']) {
+    const button=node('button','btn btn-outline-secondary',friend);
+    button.type='button';button.onclick=()=>choose(friend);$(id).append(button);
+  }
+  $('profile-open').setAttribute('aria-label','친구 선택');
+  $('profile-open').onclick=()=>$('profile-dialog').showModal();
+  $('profile-dialog').addEventListener('cancel',e=>{if(!name)e.preventDefault();});
+  $('profile-dialog').showModal();
 }
 async function refreshHistory(message) {
   if(message) toast(message);
   const generation=++listGeneration;
-  const [records,candidates]=await Promise.all([service.list(),service.candidates()]);
-  if(generation!==listGeneration) return;
-  savedRecords=records;candidateRecords=candidates;savedRecordIds=new Set(records.map(r=>r.id));
-  const ids=new Set(candidates.map(r=>r.id));for(const id of selectedCandidates) if(!ids.has(id)) selectedCandidates.delete(id);
-  $('history-count').textContent=records.length;$('export-records').disabled=!records.length&&!candidates.length;
-  const pending=records.filter(r=>r.syncState!=='synced').length;
-  const descriptions={unconfigured:'이 기기에 보관 중',connecting:'클라우드 연결 중',connected:pending?`${pending}개 클라우드 저장 대기`:'클라우드 연결됨',error:'연결 실패 · 이 기기에 보관 중'};
-  $('storage-status').textContent=descriptions[firebaseState];
-  if(!localAvailable||service.localFailed) $('storage-status').textContent+=' · JSON 백업 필요';
-  $('storage-explanation').textContent='이름은 표시용입니다. 다른 기기의 기록과 공유되지 않습니다.';
-  $('storage-dot').className=`status-dot ${firebaseState==='connected'&&!pending?'':firebaseState==='error'?'error':'warning'}`;
-  $('sync-records').hidden=!firebaseConfig||(!pending&&firebaseState==='connected');$('sync-records').disabled=firebaseState==='connecting';
+  const records=await service.list();
+  if(generation!==listGeneration)return;
+  savedRecords=records;
+  const pending=records.filter(r=>r.syncState==='pending').length;
+  $('storage-status').textContent=pending?`${pending}개 동기화 대기`:firebaseState==='connected'?'클라우드 연결됨':'클라우드 연결 확인 중';
+  $('storage-explanation').textContent=!localAvailable||service.localFailed?'브라우저 저장이 제한되어 있습니다. 기록을 내려받아 보관하세요.':'같은 초대 링크에서 확정한 여행지를 함께 봅니다.';
+  $('sync-records').hidden=firebaseState==='connected'&&!pending;
+  $('sync-records').disabled=firebaseState==='connecting';
   renderRecords();
 }
-
 function withTimeout(promise,ms=20000) {
   let timer;
   return Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('Firebase 응답 시간이 초과되었습니다.')),ms);})]).finally(()=>clearTimeout(timer));
@@ -298,9 +182,14 @@ async function initializeCloud() {
     try {
       const remote=await withTimeout(connectFirebase(firebaseConfig));
       await withTimeout(service.connect(remote));
+      unsubscribe?.();
+      unsubscribe=remote.watch(room, FRIENDS, (friend,records)=>{
+        sharedRecords.set(friend,records);renderRecords();
+        if(sharedRecords.size===FRIENDS.length && firebaseState!=='error') $('map-caption').textContent='친구들의 선택을 실시간으로 표시 중';
+      },()=>{firebaseState='error';$('map-caption').textContent='공유 지도 연결 실패 · 다시 저장을 눌러주세요';refreshHistory();});
       firebaseState='connected';
     } catch(error) {
-      firebaseState='error';
+      firebaseState='error';$('map-caption').textContent='공유 지도 연결 실패';
       toast(`Firebase 연결을 확인해주세요. ${error.code||error.message}`);
     } finally { connectionTask=null;refreshHistory(); }
   })();
@@ -322,34 +211,17 @@ function setupScope() {
     const ids=[...$('province-options').querySelectorAll('input:checked')].map(i=>i.value);
     if(!ids.length){$('scope-error').textContent='추첨할 시·도를 하나 이상 선택해주세요.';return;}
     selectedIds=ids;$('scope-count').textContent=ids.length===catalog.provinces.length?'전체':`${ids.length}개 시·도`;
-    $('scope-dialog').close();engine.reset();toast(`${ids.length}개 시·도로 추첨 범위를 설정했습니다.`);
+    $('scope-dialog').close();round.reset();toast(`${ids.length}개 시·도로 추첨 범위를 설정했습니다.`);
   });
 }
 
 function setupControls() {
-  $('primary').addEventListener('click',primaryAction);
-  $('restart').addEventListener('click',()=>engine.reset());
-  $('reroll-district').addEventListener('click',()=>engine.rerollDistrict());
-  $('save-result').addEventListener('click',()=>{if(lastResult) saveResults([lastResult.id]);});
-  $('save-selected').addEventListener('click',()=>saveResults([...selectedCandidates]));
-  $('candidate-list').addEventListener('change',event=>{
-    const checkbox=event.target.closest('input[data-record-id]');if(!checkbox) return;
-    if(checkbox.checked) selectedCandidates.add(checkbox.dataset.recordId);else selectedCandidates.delete(checkbox.dataset.recordId);
-    updateSelection();
-  });
-  $('select-candidates').addEventListener('change',event=>{
-    for(const record of currentRecords().items) {
-      if(event.target.checked) selectedCandidates.add(record.id);else selectedCandidates.delete(record.id);
-    }
-    renderRecords();
-  });
-  function changeView(tab) {recordTab=tab;pageNumber=1;selectedCandidates.clear();renderRecords();}
-  for(const tab of ['candidates','history']) {
-    const button=$(`tab-${tab}`);button.addEventListener('click',()=>changeView(tab));
-    button.addEventListener('keydown',event=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(event.key)){event.preventDefault();const next=event.key==='Home'?'candidates':event.key==='End'?'history':tab==='history'?'candidates':'history';changeView(next);$(`tab-${next}`).focus();}});
-  }
-  $('record-person').addEventListener('change',event=>{personFilter=event.target.value;pageNumber=1;selectedCandidates.clear();renderRecords();});
-  for(const [id,delta] of [['records-prev',-1],['records-next',1]]) $(id).addEventListener('click',()=>{pageNumber+=delta;selectedCandidates.clear();renderRecords();});
+  for(const [id,delta] of [['records-prev',-1],['records-next',1]]) $(id).onclick=()=>{pageNumber+=delta;renderRecords();};
+  $('invite').onclick=async()=>{
+    const url=new URL(location.href);url.hash='';
+    try {await navigator.clipboard.writeText(url.href);toast('지도 초대 링크를 복사했어요. 친구에게 보내주세요.');}
+    catch {window.prompt('친구에게 보낼 지도 초대 링크',url.href);}
+  };
   function showRecords(open,restoreFocus=false) {
     $('records-panel').hidden=!open;
     document.body.classList.toggle('records-collapsed',!open);
@@ -369,7 +241,7 @@ function setupControls() {
     if(event.target.closest('input,textarea,select,a,button') && event.target.closest('button')!==$('primary')) return;
     event.preventDefault();
     if(event.repeat||enterHeld) return;
-    enterHeld=true;primaryAction();
+    enterHeld=true;round.act();
   });
   document.addEventListener('keyup',event=>{if(event.key==='Enter') enterHeld=false;});
   window.addEventListener('blur',()=>enterHeld=false);
@@ -384,13 +256,8 @@ function setupControls() {
     currentView=[x+(w-width)/2,y+(h-height)/2,width,height];
     applyView();
   }
-  $('copy-result').addEventListener('click',async()=>{
-    try { await navigator.clipboard.writeText(lastResult.fullName);toast('목적지를 복사했습니다.'); }
-    catch { toast('복사를 사용할 수 없습니다. 결과의 지역명을 선택해서 복사해주세요.'); }
-  });
-  $('export-records').addEventListener('click',async()=>{
-    const [records,candidates]=await Promise.all([service.list(),service.candidates()]);
-    const blob=new Blob([JSON.stringify({app:'어디든',exportedAt:new Date().toISOString(),records,candidates},null,2)],{type:'application/json;charset=utf-8'});
+  $('export-records').addEventListener('click',()=>{
+    const blob=new Blob([JSON.stringify({traveler:name,records:visibleRecords()},null,2)],{type:'application/json;charset=utf-8'});
     const url=URL.createObjectURL(blob);const link=node('a');link.href=url;link.download=`어디든-여행기록-${new Date().toISOString().slice(0,10)}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(url),3000);
   });
   $('sync-records').addEventListener('click',async()=>{
@@ -412,8 +279,14 @@ async function main() {
     selectedIds=catalog.provinces.map(p=>p.id);
     $('data-version').textContent=`${catalog.version} · ${catalog.provinces.length}개 시·도`;
     setupMap();setupScope();
-    engine=new Roulette(catalog.provinces,{changed:renderEngine,completed});
-    setupControls();renderEngine();
+    round=setupRound({catalog,room,traveler:()=>name,scope:()=>selectedIds,preview,notify:toast,
+      onBusy(busy) {
+        $('scope-open').disabled=busy;$('profile-open').disabled=busy;
+        for(const b of $('traveler-choices').children)b.disabled=busy;
+      },
+      save:record=>service.save(record)
+    });
+    setupControls();round.reset(true);renderPins();
   } catch(error) {
     $('draw-status').textContent='불러오기 실패';$('primary-label').textContent='새로고침이 필요해요';
     $('announcement').textContent=`지역 데이터를 불러오지 못했습니다. 새로고침해주세요. (${error.message})`;

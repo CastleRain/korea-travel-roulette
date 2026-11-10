@@ -10,7 +10,7 @@ export async function connectFirebase(config) {
     import(`https://www.gstatic.com/firebasejs/${version}/firebase-auth.js`),
     import(`https://www.gstatic.com/firebasejs/${version}/firebase-firestore.js`),
   ]);
-  const app = appSdk.initializeApp(config);
+  const app = appSdk.getApps()[0] || appSdk.initializeApp(config);
   const auth = authSdk.getAuth(app);
   await authSdk.setPersistence(auth,authSdk.browserLocalPersistence);
   const user = (await authSdk.signInAnonymously(auth)).user;
@@ -18,10 +18,21 @@ export async function connectFirebase(config) {
   const folder = firestoreSdk.collection(db,'users',user.uid,'draws');
   return {
     async save(record) {
-      const ref = firestoreSdk.doc(folder,record.id);
+      const target = record.roomId ? firestoreSdk.collection(db,'tripRooms',record.roomId,'travelers',record.travelerName,'draws') : folder;
+      const ref = firestoreSdk.doc(target,record.id);
       // Stable UUID + existing-document check makes retries idempotent.
       if ((await timeout(firestoreSdk.getDocFromServer(ref))).exists()) return;
       await timeout(firestoreSdk.setDoc(ref,{...record,savedAt:firestoreSdk.serverTimestamp()}));
+    },
+    watch(room, names, receive, fail) {
+      const stops = names.map(name => {
+        const records = firestoreSdk.collection(db,'tripRooms',room,'travelers',name,'draws');
+        const query = firestoreSdk.query(records,firestoreSdk.orderBy('drawnAt','desc'),firestoreSdk.limit(100));
+        return firestoreSdk.onSnapshot(query, snapshot => {
+          receive(name,snapshot.docs.map(doc=>({...doc.data(),syncState:'synced'})));
+        },fail);
+      });
+      return () => stops.forEach(stop => stop());
     },
     async list() {
       const result = await timeout(firestoreSdk.getDocsFromServer(firestoreSdk.query(folder,firestoreSdk.orderBy('drawnAt','desc'),firestoreSdk.limit(100))));
