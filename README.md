@@ -3,6 +3,8 @@
 지도와 연결된 2단계 여행지 추첨 웹 앱. 별도 프로젝트로 구성했으며 상위 AI Company OS의 실행·데이터를 사용하지 않습니다.
 
 - 시작 → Enter로 시·도 확정 → 1.2초 뒤 시·군·구 추첨 → Enter로 완료
+- 첫 방문 이름/별명 입력과 기기 내 기억, 상단에서 이름 변경
+- 추첨 결과는 로컬 임시 목록에 모으고 단건 또는 체크한 여러 결과만 내 기록에 저장
 - 터치/클릭 지원, 재시작, 같은 시·도에서 다시 뽑기, 추첨 범위 선택
 - 실제 행정경계 SVG 지도, 결과 강조, 확대/축소, 지도 검색, 결과 복사
 - Firebase 익명 인증 + Firestore 사용자별 추첨 기록 저장
@@ -64,10 +66,12 @@ python scripts/prepare_data.py
 ```text
 users/{anonymousUid}/draws/{drawUuid}
   id / provinceId / provinceName / destinationId / destinationName
-  fullName / singleStage / dataVersion / drawnAt / savedAt(server timestamp)
+  fullName / singleStage / dataVersion / drawnAt / travelerName / savedAt(server timestamp)
 ```
 
 사용자는 본인 기록만 읽고 새로 만들 수 있습니다. 수정·삭제와 다른 사용자 접근은 막습니다. 조회는 최근 100개로 제한하고 현재 화면에는 최근 20개를 표시합니다. 이 브라우저에서 생성한 기록은 IndexedDB에 남아 전체 JSON 내보내기가 가능합니다. UUID로 중복 전송을 방지합니다.
+
+추첨만 한 결과는 `candidate` 상태로 이 기기에만 보관하며 Firebase 연결·재시도 시에도 전송하지 않습니다. 사용자가 선택해 기록하기를 누른 결과만 저장 대기열에 들어갑니다. 이름은 표시용 메타데이터이며 기록 소유권은 익명 UID로 구분합니다. 같은 브라우저에서 이름만 바꾸면 기존 기록은 계속 보이고, 이름 변경은 이전 기록에 소급되지 않습니다. 예전 이름 없는 기록도 보존합니다. JSON 내보내기는 저장한 `records`와 미선택 임시 결과 `candidates`를 구분해 포함합니다.
 
 익명 사용자는 브라우저별로 구분됩니다. 여러 기기 공유는 아직 지원하지 않으며, 브라우저 데이터 삭제 시 기존 익명 기록에 접근하지 못할 수 있습니다. 다른 기기 공유가 필요하면 Google/이메일 로그인과 계정 연결 기능을 추가해야 합니다. 공개 사이트 트래픽에 따른 Firebase 사용량은 Firebase 콘솔에서 확인하세요.
 
@@ -76,12 +80,12 @@ users/{anonymousUid}/draws/{drawUuid}
 ```powershell
 npm.cmd test
 npm.cmd run build
-firebase emulators:exec --only firestore --project demo-travel-roulette "node --test tests/firestore.integration.mjs"
+npm.cmd run test:firestore
 ```
 
-단위 검사 19개: 전 지역 완주, 예외·소속·범위, 표시 결과 확정, 연타·재시작·오래된 타이머, 저장 실패·재시도·서버 응답 구분.
+단위 검사 28개: 전 지역 완주, 예외·소속·범위, 표시 결과 확정, 연타·재시작·오래된 타이머, 저장 실패·재시도·서버 응답 구분, 이름 검증·기억, 명시적 선택 전 전송 금지, 선택 결과만 저장, 이름 변경·기존 기록 보존.
 
-Firestore 에뮬레이터 검사 5개: 실제 문서 쓰기·읽기, 미인증·타인 접근 차단, 필드 검증, 수정 차단, 제한된 본인 조회. 실제 Firebase 프로젝트 검증과 구별합니다. Java 및 Firebase CLI가 필요합니다. 로컬 demo 프로젝트로만 실행됩니다.
+Firestore 에뮬레이터 검사 7개: 실제 문서 쓰기·읽기, 미인증·타인 접근 차단, 필드 검증, 수정 차단, 제한된 본인 조회, 이름 포함 저장·유효성 검사. 실제 Firebase 프로젝트 검증과 구별합니다. Java 및 Firebase CLI가 필요합니다. 로컬 demo 프로젝트로만 실행되며 `firebase.test.json`의 별도 포트를 사용합니다.
 
 ## GitHub Pages
 

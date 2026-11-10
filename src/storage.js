@@ -1,4 +1,6 @@
-// IndexedDB is a local outbox. Only a Firestore acknowledgement means cloud-saved.
+import { normalizeTravelerName } from './profile.js';
+
+// Candidates stay local; only explicitly saved records enter the cloud outbox.
 export class LocalRecords {
   async open() {
     this.db = await new Promise((resolve,reject)=>{
@@ -25,24 +27,48 @@ export class LocalRecords {
 }
 
 export class RecordService {
-  constructor(local, { notify = () => {} } = {}) { this.local=local; this.remote=null; this.notify=notify; this.inflight = new Set(); this.memory = new Map(); }
-  async list() {
+  constructor(local, { notify = () => {} } = {}) { this.local=local; this.remote=null; this.notify=notify; this.inflight = new Set(); this.memory = new Map(); this.saves = new Map(); }
+  async all() {
     let stored = [];
     try { stored = await this.local.all(); } catch {}
     return [...new Map([...stored,...this.memory.values()].map(r=>[r.id,r])).values()].sort((a,b)=>b.drawnAt.localeCompare(a.drawnAt));
   }
+  async list() { return (await this.all()).filter(record=>record.syncState !== 'candidate'); }
+  async candidates() { return (await this.all()).filter(record=>record.syncState === 'candidate'); }
+  async stage(record) {
+    const travelerName = normalizeTravelerName(record.travelerName);
+    if ((await this.all()).some(r=>r.id===record.id)) return;
+    await this.retain({...record,travelerName,syncState:'candidate'});
+    await this.notify();
+  }
   async retain(record) {
     this.memory.set(record.id,record);
     try { await this.local.put(record); return true; }
-    catch { this.notify('브라우저 임시 저장 실패: 이 화면을 닫기 전에 JSON을 내려받아주세요.'); return false; }
+    catch { this.localFailed=true;this.notify('브라우저 임시 저장 실패: 이 화면을 닫기 전에 JSON을 내려받아주세요.'); return false; }
   }
-  async save(record) {
-    const pending = {...record, syncState:'pending'};
+  save(record) {
+    if (this.saves.has(record.id)) return this.saves.get(record.id);
+    const operation = this.promote(record).finally(()=>this.saves.delete(record.id));
+    this.saves.set(record.id,operation);
+    return operation;
+  }
+  async promote(record) {
+    const existing = (await this.all()).find(r=>r.id === record.id);
+    if (existing && existing.syncState !== 'candidate') return false;
+    const pending = {...(existing ?? record), syncState:'pending'};
     await this.retain(pending); await this.notify();
     if (this.remote) await this.syncOne(pending);
+    return true;
+  }
+  async saveSelected(ids) {
+    const wanted = new Set(ids);
+    const chosen = (await this.candidates()).filter(record=>wanted.has(record.id));
+    let count = 0;
+    for (const record of chosen) if (await this.save(record)) count++;
+    return count;
   }
   async syncOne(record) {
-    if (!this.remote || record.syncState==='synced' || this.inflight.has(record.id)) return;
+    if (!this.remote || record.syncState==='synced' || record.syncState==='candidate' || this.inflight.has(record.id)) return;
     this.inflight.add(record.id);
     // Capture destination; a reconnect never writes records to two accounts.
     const remote = this.remote;

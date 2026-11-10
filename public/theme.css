@@ -126,6 +126,32 @@ dialog { border-radius: 12px; background: var(--paper); }
 .toast { font-size: 14px; border-radius: 8px; }
 button:focus-visible, a:focus-visible, input:focus-visible { outline-color: #9b5736; }
 
+/* Display name and explicit, user-selected record saving. */
+.profile-button { max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 7px 11px; border: 1px solid var(--line); border-radius: 6px; background: transparent; font-size: 13px; color: var(--green); }
+.profile-label { display: block; margin: 24px 0 8px; font-size: 14px; font-weight: 550; }
+#profile-description { color: var(--muted); font-size: 14px; line-height: 1.8; }
+#traveler-name { display: block; width: 100%; border: 1px solid #b9c4b9; border-radius: 8px; background: var(--white); color: var(--ink); padding: 14px; font-size: 17px; line-height: 1.5; }
+.profile-note { margin: 16px 0 0; font-size: 12px; line-height: 1.8; color: var(--muted); }
+#profile-error { margin: 9px 0 14px; min-height: 20px; }
+.primary-button.next-draw { background: transparent; color: var(--green); border: 1px solid #acbeb0; }
+.primary-button.next-draw:hover { background: var(--mint); }
+#save-result { padding: 9px 13px; background: var(--green); color: white; border: 1px solid var(--green); border-radius: 6px; text-decoration: none; font-weight: 550; }
+#save-result:disabled { opacity: .65; }
+.result-traveler { flex-basis: 100%; color: var(--muted); font-size: 12px; }
+.candidate-section { margin-bottom: 42px; scroll-margin-top: 24px; }
+.candidate-description { font-size: 13px; color: var(--muted); line-height: 1.8; margin: 14px 0 17px; }
+.candidate-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; color: var(--muted); font-size: 12px; }
+.candidate-toolbar label { display: flex; align-items: center; gap: 9px; cursor: pointer; }
+.candidate-toolbar input, .candidate-row input { accent-color: var(--green); width: 19px; height: 19px; flex-shrink: 0; }
+.candidate-list { border: 1px solid var(--line); border-radius: 10px; background: var(--white); overflow: hidden; }
+.candidate-row { display: flex; align-items: center; gap: 15px; cursor: pointer; padding: 19px 23px; }
+.candidate-row + .candidate-row { border-top: 1px solid var(--line); }
+.candidate-row:has(input:checked) { background: #edf1e9; }
+.candidate-info { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.candidate-info strong { font-size: 15px; font-weight: 550; overflow-wrap: anywhere; }
+.candidate-info > span { font-size: 12px; line-height: 1.6; color: var(--muted); overflow-wrap: anywhere; }
+#more-candidates { margin-top: 14px; }
+
 @media (min-width: 1440px) {
   .intro { padding-block: 46px 34px; }
   .draw-card { padding: 32px; }
@@ -144,7 +170,12 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline-color: #9b5
   .map-footer { padding-inline: 18px; font-size: 11px; }
 }
 @media (max-width: 760px) {
-  .site-header { height: 76px; padding-inline: 20px; }
+  .site-header { height: auto; min-height: 94px; padding: 15px 20px; display: grid; grid-template-columns: 1fr auto; gap: 10px 16px; }
+  .site-header > .brand { grid-column: 1; grid-row: 1; }
+  .site-header nav { display: contents; }
+  .site-header nav a[href="#history"] { grid-column: 1; grid-row: 2; padding: 0; justify-self: start; font-size: 12px; }
+  #profile-open { grid-column: 2; grid-row: 1; max-width: 155px; font-size: 12px; }
+  #help-open { grid-column: 2; grid-row: 2; justify-self: end; }
   .brand { font-size: 24px; }
   .site-header nav { gap: 18px; font-size: 13px; }
   .site-header nav .text-button { font-size: 12px; }
@@ -191,4 +222,12 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline-color: #9b5
   footer { margin: 0 18px; padding: 22px 0 28px; gap: 14px; }
   footer div p { font-size: 11px; }
   .province-options label { font-size: 13px; padding: 11px 9px; }
+  .candidate-section { margin-bottom: 32px; }
+  .candidate-section .section-heading { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .candidate-description { font-size: 12px; }
+  .candidate-toolbar { font-size: 11px; gap: 8px; }
+  .candidate-row { padding: 17px 15px; gap: 12px; }
+  .candidate-info strong { font-size: 14px; }
+  .candidate-info > span { font-size: 11px; }
+  .result-actions { row-gap: 11px; }
 }

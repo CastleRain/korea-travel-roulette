@@ -8,6 +8,7 @@
     "dev": "node scripts/serve.mjs",
     "build": "node scripts/build.mjs",
     "test": "node --test tests/*.test.mjs",
+    "test:firestore": "firebase emulators:exec --config firebase.test.json --only firestore --project demo-travel-roulette \"node --test tests/firestore.integration.mjs\"",
     "check": "npm test && npm run build"
   }
 }

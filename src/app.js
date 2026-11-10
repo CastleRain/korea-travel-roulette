@@ -2,12 +2,16 @@ import { Roulette, STATES, validateCatalog, makeRecord } from './roulette.js';
 import { LocalRecords, RecordService } from './storage.js';
 import { connectFirebase } from './firebase.js';
 import { firebaseConfig } from '../firebase-config.js';
+import { TravelerProfile } from './profile.js';
 
 const $ = id=>document.getElementById(id);
 const ns = 'http://www.w3.org/2000/svg';
 let catalog, engine, service, selectedIds = [], lastState, lastMapKey, lastResult = null;
 let firebaseState = 'unconfigured', localAvailable = false, listGeneration = 0, toastTimer;
 let currentView = [0,0,640,650], enterHeld = false;
+const profile = new TravelerProfile();
+const selectedCandidates = new Set();
+let candidateRecords = [], savedRecordIds = new Set(), candidateLimit = 20, savingSelection = false;
 const shortNames = {'서울특별시':'서울','부산광역시':'부산','대구광역시':'대구','인천광역시':'인천','대전광역시':'대전','울산광역시':'울산','세종특별자치시':'세종','경기도':'경기','강원특별자치도':'강원','충청북도':'충북','충청남도':'충남','전북특별자치도':'전북','경상북도':'경북','경상남도':'경남','제주특별자치도':'제주','전남광주통합특별시':'전남광주'};
 const dateFormat = new Intl.DateTimeFormat('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:'Asia/Seoul'});
 
@@ -102,7 +106,9 @@ function renderEngine() {
   $('ticket').classList.toggle('complete',complete);
   $('draw-status').classList.toggle('spinning',spinning);
   $('primary').classList.toggle('stopping',spinning);
-  $('primary').disabled=transition;
+  $('primary').disabled=transition||!profile.name;
+  $('primary').classList.toggle('next-draw',complete);
+  $('profile-open').disabled=spinning||transition;
   $('restart').disabled=ready;
   $('scope-open').disabled=spinning||transition;
   $('result-actions').hidden=!complete;
@@ -124,39 +130,115 @@ function renderEngine() {
   $('ticket-route').textContent=engine.province?`VIA ${shortNames[engine.province.name]||engine.province.name}`:'FROM 일상';
   $('keyboard-text').textContent=transition?'키를 떼고 잠시 기다려주세요':complete?'새로운 여행 시작':ready?'시작 / 추첨 멈추기':'지금 보이는 지역 확정';
   updateMap();
+  updateSaveResult();
 }
 function primaryAction() {
   if (!engine) return;
-  if (engine.state===STATES.READY||engine.state===STATES.COMPLETE) engine.start(selectedIds);
+  if (!profile.name) { openProfile(); return; }
+  if (engine.state===STATES.READY||engine.state===STATES.COMPLETE) { lastResult=null;engine.start(selectedIds); }
   else engine.stop();
 }
 
 async function completed({province,destination}) {
-  const record=makeRecord(province,destination,catalog.version);
+  const record={...makeRecord(province,destination,catalog.version),travelerName:profile.name};
   lastResult=record;
   $('search-map').href=`https://map.naver.com/p/search/${encodeURIComponent(record.fullName)}`;
   $('reroll-district').hidden=province.singleStage;
-  // Firestore errors are handled independently; a draw always remains usable.
-  await service.save(record);
+  updateSaveResult();
+  // Drawing only creates a local candidate. A separate action approves saving.
+  await service.stage(record);
+}
+
+function openProfile() {
+  $('traveler-name').value=profile.name;
+  $('profile-error').textContent='';
+  $('profile-cancel').hidden=!profile.name;
+  $('profile-dialog').querySelector('button[type="submit"]').firstChild.textContent=profile.name?'이름 변경하기 ':'이 이름으로 시작하기 ';
+  if (!$('profile-dialog').open) $('profile-dialog').showModal();
+}
+function renderProfile() {
+  $('profile-name').textContent=profile.name?`${profile.name} 님`:'이름 입력';
+  $('profile-open').title=profile.name?`${profile.name} · 이름 변경`:'이름 입력';
+  $('profile-open').setAttribute('aria-label',profile.name?'이름 변경':'이름 입력');
+  if(engine) $('primary').disabled=!profile.name||engine.state===STATES.TRANSITION;
+}
+function setupProfile() {
+  profile.load(); renderProfile();
+  $('profile-open').addEventListener('click',openProfile);
+  $('profile-dialog').addEventListener('cancel',event=>{if(!profile.name) event.preventDefault();});
+  $('profile-form').addEventListener('submit',event=>{
+    event.preventDefault();
+    try {
+      profile.set($('traveler-name').value);
+      $('profile-dialog').close(); renderProfile();
+      if(!profile.persistent) toast('이름을 이 기기에 기억할 수 없어 이번 방문 동안만 사용합니다.');
+    } catch(error) { $('profile-error').textContent=error.message;$('traveler-name').focus(); }
+  });
+  if(!profile.name) openProfile();
+}
+function updateSaveResult() {
+  const saved = lastResult && savedRecordIds.has(lastResult.id);
+  $('save-result').textContent=saved?'기록에 남겼어요':savingSelection?'기록하는 중…':'이 결과 기록하기';
+  $('save-result').disabled=!lastResult||saved||savingSelection||!candidateRecords.some(r=>r.id===lastResult.id);
+  $('result-traveler').textContent=lastResult?`${lastResult.travelerName} 님의 추첨 결과`:'';
+}
+function updateSelection() {
+  const visible=candidateRecords.slice(0,candidateLimit);
+  const checked=visible.filter(r=>selectedCandidates.has(r.id)).length;
+  $('select-candidates').checked=visible.length>0&&checked===visible.length;
+  $('select-candidates').indeterminate=checked>0&&checked<visible.length;
+  $('selection-count').textContent=`${selectedCandidates.size}개 선택`;
+  $('save-selected').disabled=!selectedCandidates.size||savingSelection;
+  $('save-selected').textContent=savingSelection?'기록하는 중…':`선택한 결과 기록하기${selectedCandidates.size?` (${selectedCandidates.size})`:''}`;
+}
+function renderCandidates(records) {
+  candidateRecords=records;
+  const ids=new Set(records.map(r=>r.id));
+  for(const id of selectedCandidates) if(!ids.has(id)) selectedCandidates.delete(id);
+  $('candidates').hidden=!records.length;
+  $('candidate-total').textContent=String(records.length).padStart(2,'0');
+  const fragment=document.createDocumentFragment();
+  for(const record of records.slice(0,candidateLimit)) {
+    const row=node('label','candidate-row');
+    const checkbox=node('input');checkbox.type='checkbox';checkbox.dataset.recordId=record.id;
+    checkbox.checked=selectedCandidates.has(record.id);
+    checkbox.setAttribute('aria-label',`${record.fullName} · ${record.travelerName} · ${dateFormat.format(new Date(record.drawnAt))} 기록 선택`);
+    const info=node('span','candidate-info');info.append(node('strong','',record.fullName),node('span','',`${record.travelerName} · ${dateFormat.format(new Date(record.drawnAt))} KST`));
+    row.append(checkbox,info);fragment.append(row);
+  }
+  $('candidate-list').replaceChildren(fragment);
+  $('more-candidates').hidden=records.length<=candidateLimit;
+  updateSelection();updateSaveResult();
+}
+async function saveResults(ids) {
+  if(savingSelection) return;
+  savingSelection=true;updateSelection();updateSaveResult();
+  try {
+    const count=await service.saveSelected(ids);
+    toast(count?`${count}개 목적지를 내 여행 기록에 남겼습니다.`:'이미 기록했거나 선택된 결과가 없습니다.');
+  } catch { toast('기록을 남기지 못했습니다. 임시 목록에서 다시 선택해주세요.'); }
+  finally {savingSelection=false;await refreshHistory();}
 }
 
 async function refreshHistory(message) {
   if (message) toast(message);
   const generation=++listGeneration;
-  const records=await service.list();
+  const [records,candidates]=await Promise.all([service.list(),service.candidates()]);
   if (generation!==listGeneration) return;
+  savedRecordIds=new Set(records.map(r=>r.id));
+  renderCandidates(candidates);
   $('history-count').textContent=records.length;
   $('log-total').textContent=String(records.length).padStart(2,'0');
-  $('export-records').disabled=!records.length;
+  $('export-records').disabled=!records.length&&!candidates.length;
   const pending=records.filter(r=>r.syncState!=='synced').length;
   const descriptions={
     unconfigured:`클라우드 미연결 · ${pending?`${pending}개 기록을 이 브라우저에 임시 보관 중입니다.`:'기록은 이 브라우저에 임시 보관합니다.'}`,
     connecting:'클라우드 연결 중 · 기록은 먼저 이 브라우저에 임시 보관합니다.',
-    connected:pending?`클라우드 연결됨 · ${pending}개 저장 대기 중`:'클라우드 연결됨 · 내 여행 기록을 자동으로 저장합니다.',
+    connected:pending?`클라우드 연결됨 · ${pending}개 저장 대기 중`:'클라우드 연결됨 · 선택해 기록한 목적지만 저장합니다.',
     error:'클라우드 연결 실패 · 기록은 이 브라우저에 임시 보관 중입니다. 다시 저장을 눌러주세요.'
   };
   $('storage-status').textContent=descriptions[firebaseState];
-  if (!localAvailable) $('storage-status').textContent+=' 브라우저 임시 저장을 사용할 수 없어 JSON 백업이 필요합니다.';
+  if (!localAvailable || service.localFailed) $('storage-status').textContent+=' 브라우저 임시 저장을 사용할 수 없어 JSON 백업이 필요합니다.';
   $('storage-dot').className=`status-dot ${firebaseState==='connected'&&!pending?'':firebaseState==='error'?'error':'warning'}`;
   $('sync-records').hidden=!firebaseConfig || (!pending && firebaseState==='connected');
   $('sync-records').disabled=firebaseState==='connecting';
@@ -167,7 +249,7 @@ async function refreshHistory(message) {
     row.append(node('span','history-index',String(records.length-i).padStart(2,'0')));
     const info=node('div','history-info');
     info.append(node('h3','',r.fullName));
-    info.append(node('p','',`${dateFormat.format(new Date(r.drawnAt))} KST · ${r.singleStage?'단일 단계':'2단계 추첨'}`));
+    info.append(node('p','',`${r.travelerName||'기존 기록'} · ${dateFormat.format(new Date(r.drawnAt))} KST · ${r.singleStage?'단일 단계':'2단계 추첨'}`));
     row.append(info,node('span',`save-tag ${r.syncState==='synced'?'':'pending'}`,r.syncState==='synced'?'Firebase 저장 완료':'클라우드 저장 대기'));
     const link=node('a','history-map-link','↗');
     link.href=`https://map.naver.com/p/search/${encodeURIComponent(r.fullName)}`;
@@ -221,6 +303,20 @@ function setupControls() {
   $('primary').addEventListener('click',primaryAction);
   $('restart').addEventListener('click',()=>engine.reset());
   $('reroll-district').addEventListener('click',()=>engine.rerollDistrict());
+  $('save-result').addEventListener('click',()=>{if(lastResult) saveResults([lastResult.id]);});
+  $('save-selected').addEventListener('click',()=>saveResults([...selectedCandidates]));
+  $('candidate-list').addEventListener('change',event=>{
+    const checkbox=event.target.closest('input[data-record-id]');if(!checkbox) return;
+    if(checkbox.checked) selectedCandidates.add(checkbox.dataset.recordId);else selectedCandidates.delete(checkbox.dataset.recordId);
+    updateSelection();
+  });
+  $('select-candidates').addEventListener('change',event=>{
+    for(const record of candidateRecords.slice(0,candidateLimit)) {
+      if(event.target.checked) selectedCandidates.add(record.id);else selectedCandidates.delete(record.id);
+    }
+    renderCandidates(candidateRecords);
+  });
+  $('more-candidates').addEventListener('click',()=>{candidateLimit+=20;renderCandidates(candidateRecords);});
   document.addEventListener('keydown',event=>{
     if(event.key!=='Enter'||event.isComposing||event.ctrlKey||event.altKey||event.metaKey) return;
     if(document.querySelector('dialog[open]')) return;
@@ -247,8 +343,8 @@ function setupControls() {
     catch { toast('복사를 사용할 수 없습니다. 결과의 지역명을 선택해서 복사해주세요.'); }
   });
   $('export-records').addEventListener('click',async()=>{
-    const records=await service.list();
-    const blob=new Blob([JSON.stringify({app:'어디든',exportedAt:new Date().toISOString(),records},null,2)],{type:'application/json;charset=utf-8'});
+    const [records,candidates]=await Promise.all([service.list(),service.candidates()]);
+    const blob=new Blob([JSON.stringify({app:'어디든',exportedAt:new Date().toISOString(),records,candidates},null,2)],{type:'application/json;charset=utf-8'});
     const url=URL.createObjectURL(blob);const link=node('a');link.href=url;link.download=`어디든-여행기록-${new Date().toISOString().slice(0,10)}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(url),3000);
   });
   $('sync-records').addEventListener('click',async()=>{
@@ -260,6 +356,7 @@ function setupControls() {
 async function main() {
   const local=new LocalRecords();
   service=new RecordService(local,{notify:refreshHistory});
+  setupProfile();
   try {await local.open();localAvailable=true;} catch {localAvailable=false;}
   await refreshHistory();
   try {
