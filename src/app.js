@@ -150,10 +150,10 @@ async function refreshHistory(message) {
   $('export-records').disabled=!records.length;
   const pending=records.filter(r=>r.syncState!=='synced').length;
   const descriptions={
-    unconfigured:`Firebase 연결 전이에요.${pending?` ${pending}개 기록이 브라우저에서 저장 대기 중입니다.`:' 추첨 기록은 브라우저에 임시 보관됩니다.'}`,
-    connecting:'Firebase에 연결하고 있습니다. 기록은 먼저 브라우저에 임시 보관해요.',
-    connected:pending?`Firebase 연결됨 · ${pending}개 저장 대기 중`:'Firebase 연결됨 · 추첨 기록을 내 클라우드에 저장해요.',
-    error:'Firebase 연결 실패 · 브라우저 임시 기록을 보관하고 있어요. 다시 저장을 눌러주세요.'
+    unconfigured:`클라우드 미연결 · ${pending?`${pending}개 기록을 이 브라우저에 임시 보관 중입니다.`:'기록은 이 브라우저에 임시 보관합니다.'}`,
+    connecting:'클라우드 연결 중 · 기록은 먼저 이 브라우저에 임시 보관합니다.',
+    connected:pending?`클라우드 연결됨 · ${pending}개 저장 대기 중`:'클라우드 연결됨 · 내 여행 기록을 자동으로 저장합니다.',
+    error:'클라우드 연결 실패 · 기록은 이 브라우저에 임시 보관 중입니다. 다시 저장을 눌러주세요.'
   };
   $('storage-status').textContent=descriptions[firebaseState];
   if (!localAvailable) $('storage-status').textContent+=' 브라우저 임시 저장을 사용할 수 없어 JSON 백업이 필요합니다.';

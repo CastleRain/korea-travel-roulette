@@ -46,6 +46,8 @@ python scripts/prepare_data.py
 
 ## Firebase 연결
 
+콘솔에서 따라 하는 [단계별 연결 안내](docs/FIREBASE_SETUP.md)를 먼저 참고하세요. 웹 앱 등록 → 익명 인증 → 기본 Firestore DB → 보안 규칙 → 공개 웹 설정 반영 → 실제 문서 확인 순서입니다.
+
 현재 `public/firebase-config.js`는 연결 전 값(`null`)입니다. 프로젝트별 설정을 넣기 전에는 클라우드 저장을 주장하지 않습니다.
 
 1. 기존 Firebase 프로젝트에서 웹 앱을 등록하고 공개 `firebaseConfig`를 `public/firebase-config.js`에 넣습니다.
@@ -100,3 +102,9 @@ Firestore 에뮬레이터 검사 5개: 실제 문서 쓰기·읽기, 미인증·
 | docs/ | 결정사항과 실제 검증 기록 |
 
 개발용 도구·캐시·로컬 검증 기록은 Git에 업로드하지 않습니다.
+
+## 색상과 글꼴
+
+`public/theme.css`에서 아이보리 `#F7F5F0`, 차콜 `#252E2A`, 포레스트 그린 `#28574E`, 테라코타 `#AD6340`를 역할에 따라 사용합니다. 본문과 보조 설명은 중립색, 주요 버튼과 확정 결과는 초록, 지도 목적지는 테라코타로 구분합니다. 기존 `style.css`는 기본 배치·동작 스타일을 담당하고 theme은 시각 표현과 반응형 글자 크기를 조정합니다.
+
+Pretendard v1.3.9 Variable WOFF2를 직접 호스팅하여 실제 한글 글꼴이 로드되도록 했습니다. 출처는 [orioncactus/pretendard](https://github.com/orioncactus/pretendard/tree/v1.3.9), SIL Open Font License 1.1이며 `public/fonts/OFL.txt`를 포함합니다. 글꼴 SHA-256: `9599f12fd42fc0bce1cd50b47a0c022e108d7aa64dd0d1bb0ed44f3282d900b4`.
